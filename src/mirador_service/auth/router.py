@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from mirador_service.auth.deps import AuthenticatedUser, current_user
 from mirador_service.auth.dtos import LoginRequest, RefreshRequest, TokenResponse
 from mirador_service.auth.jwt import JwtError, TokenType, decode_token, issue_access_token, issue_refresh_token
 from mirador_service.auth.models import AppUser, RefreshToken
@@ -22,6 +23,19 @@ from mirador_service.config.settings import Settings, get_settings
 from mirador_service.db.base import get_db_session
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
+
+
+@router.get("/me")
+async def me(
+    user: Annotated[AuthenticatedUser, Depends(current_user)],
+) -> dict[str, str]:
+    """Return the currently authenticated user's username + role.
+
+    Used by the Angular frontend to populate the topbar after login (no
+    extra DB lookup — claims come from the validated access-token JWT).
+    Returns 401 if the Bearer token is missing / invalid / expired.
+    """
+    return {"username": user.username, "role": user.role}
 
 
 @router.post("/login", response_model=TokenResponse)

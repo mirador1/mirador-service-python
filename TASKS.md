@@ -31,13 +31,13 @@ Stable checkpoint pending (no tag yet — needs first green main pipeline post-m
       then `glab mr merge <id> --auto-merge --squash=false --remove-source-branch=false`.
       Verify CI is configured to run on MR + main + can actually deploy.
 
-- [ ] **Add `service.namespace` resource attribute** in `observability/otel.py` so
+- [x] **Add `service.namespace` resource attribute** in `observability/otel.py` so
       Tempo/Mimir can group Python + Java services under the same namespace
-      (`mirador`). One-line addition, big dashboarding win.
+      (`mirador`). DONE 2026-04-25 in commit (post-tasks-md).
 
-- [ ] **Wire `/auth/me`** endpoint returning `{"username", "role"}` from
-      `current_user`. Trivial (one router file edit), useful for the Angular
-      frontend to populate the topbar.
+- [x] **Wire `/auth/me`** endpoint returning `{"username", "role"}` from
+      `current_user`. DONE 2026-04-25 + 3 tests (401 missing, 200 valid,
+      401 refresh-on-access).
 
 - [ ] **Add `/customers/{id}/bio`** + **/customers/{id}/todos** parity with the
       Java side : Bio = Ollama LLM call (Resilience4j-equivalent retry via
