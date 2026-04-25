@@ -1,7 +1,13 @@
 # Lint stage : ruff + mypy + import-linter (= Java's checkstyle + spotbugs + ArchUnit)
 
+# Bumped 2026-04-25 from python3.13 → python3.14 because pyproject.toml
+# requires-python = ">=3.14". Building on 3.13 forced asyncpg / pydantic-core
+# to compile from source (no wheels) which then failed with
+# `command 'cc' failed: No such file or directory` (uv's slim image has no
+# build toolchain). Matching the project's required Python version uses the
+# pre-built wheels from PyPI.
 .uv-base: &uv-base
-  image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+  image: ghcr.io/astral-sh/uv:python3.14-bookworm-slim
   tags:
     - macbook-local
   before_script:
@@ -26,6 +32,9 @@ mypy:
   script:
     - uv run mypy src
 
+# Architectural-boundary contracts — Python equivalent of Java's ArchUnit.
+# See .importlinter for the 4 contracts (config-leaf, db↔kafka indep,
+# integration adapters indep, observability-leaf).
 import-linter:
   <<: *uv-base
   stage: validate
@@ -33,4 +42,4 @@ import-linter:
     - exists:
         - .importlinter
   script:
-    - uv run lint-imports
+    - uv run lint-imports --config .importlinter
