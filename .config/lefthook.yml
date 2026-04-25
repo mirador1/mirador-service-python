@@ -1,0 +1,127 @@
+# =============================================================================
+# lefthook.yml — Git hooks configuration (Python flavour)
+#
+# Mirror of mirador-service Java's lefthook config (see svc .config/lefthook.yml
+# for the full rationale). Adapted for Python tooling : ruff + mypy + pytest
+# instead of mvn + checkstyle + maven-surefire.
+#
+# Install : brew install lefthook && lefthook install (from repo root)
+# Bypass : LEFTHOOK=0 git commit/push (emergency)
+#
+# Hooks :
+#   commit-msg : conventional-commits regex (subject ≤ 72 chars)
+#   pre-commit : ruff + mypy on STAGED files (fast, no build)
+#   pre-push   : pytest unit + ruff format check (block bad pushes)
+# =============================================================================
+
+# Conventional Commits regex (mirror Java's enforcement) :
+# <type>(<optional scope>)!?: <subject>
+# type ∈ {feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert}
+# subject ≤ 72 chars (commitlint header-max-length default).
+commit-msg:
+  commands:
+    conventional-commits:
+      run: |
+        # head -n1 strips trailing newline ; tr removes any stray \r ; the
+        # printf-piped echo avoids shell interpretation of subject content
+        # (e.g. messages containing `*` or `!` that grep -E would balk at).
+        msg=$(head -n1 "$1" | tr -d '\r')
+        # Bash regex match (=~) avoids the grep subprocess + handles special
+        # chars in the subject without quoting hell.
+        regex='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-zA-Z0-9._/-]+\))?!?: .{1,72}$'
+        if [[ ! "$msg" =~ $regex ]]; then
+          echo "❌ Commit message does NOT match Conventional Commits :"
+          echo ""
+          echo "   $msg"
+          echo ""
+          echo "Expected : <type>(<optional-scope>)!?: <subject ≤ 72 chars>"
+          echo "Types : feat | fix | docs | style | refactor | perf | test | build | ci | chore | revert"
+          echo ""
+          echo "Examples :"
+          echo "   feat(auth): add /me endpoint"
+          echo "   fix(integration): UNIQUE violation surfaces at flush"
+          echo "   docs(adr): 0006 structlog over stdlib"
+          echo ""
+          echo "Bypass with LEFTHOOK=0 git commit ... (emergency only)"
+          exit 1
+        fi
+
+pre-commit:
+  parallel: true
+  commands:
+    ruff-check:
+      glob: "*.{py,pyi}"
+      run: uv run ruff check {staged_files}
+      stage_fixed: true
+
+    ruff-format:
+      glob: "*.{py,pyi}"
+      run: uv run ruff format --check {staged_files}
+
+    yaml-lint:
+      glob: "*.{yml,yaml}"
+      run: |
+        # Best-effort YAML lint — yamllint is not always installed.
+        if command -v yamllint >/dev/null 2>&1; then
+          yamllint -d "{extends: default, rules: {line-length: {max: 120}, document-start: disable}}" {staged_files}
+        else
+          echo "⚠️  yamllint not installed — skipping. brew install yamllint"
+        fi
+
+    dockerfile-lint:
+      glob: "Dockerfile*"
+      run: |
+        if command -v hadolint >/dev/null 2>&1; then
+          hadolint {staged_files}
+        else
+          echo "⚠️  hadolint not installed — skipping. brew install hadolint"
+        fi
+
+    gitlab-ci-lint:
+      glob: ".gitlab-ci/*.yml"
+      run: |
+        if command -v glab >/dev/null 2>&1; then
+          # glab ci lint validates the rendered .gitlab-ci.yml ; we run it once
+          # if any included file changes.
+          glab ci lint --path .gitlab-ci.yml 2>&1 | tail -5
+        else
+          echo "⚠️  glab not installed — skipping CI lint. brew install glab"
+        fi
+
+    k8s-dry-run:
+      glob: "infra/k8s/**/*.yaml"
+      run: |
+        if command -v kubectl >/dev/null 2>&1; then
+          # Render via kustomize + validate offline (no cluster needed).
+          kubectl kustomize infra/k8s/base 2>&1 | tail -5
+        else
+          echo "⚠️  kubectl not installed — skipping k8s lint."
+        fi
+
+    env-keys-in-sync:
+      # When .env or .env.example changes, the other should track it
+      # (key parity rule from svc CLAUDE.md).
+      glob: "{.env,.env.example}"
+      run: |
+        if [ -f .env ] && [ -f .env.example ]; then
+          missing=$(diff <(grep -oE '^[A-Z_][A-Z0-9_]*' .env.example | sort -u) \
+                        <(grep -oE '^[A-Z_][A-Z0-9_]*' .env | sort -u) | head -5)
+          if [ -n "$missing" ]; then
+            echo "⚠️  .env vs .env.example key drift :"
+            echo "$missing"
+            echo "(Sync the keys ; values can differ.)"
+          fi
+        fi
+
+pre-push:
+  parallel: false
+  commands:
+    pytest-unit:
+      # Fast unit tests block the push. Integration tests + coverage gate
+      # are run separately in CI.
+      run: uv run pytest -q tests/unit --no-cov
+      tags: tests
+
+    mypy-strict:
+      run: uv run mypy src
+      tags: lint

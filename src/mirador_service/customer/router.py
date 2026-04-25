@@ -23,6 +23,7 @@ from redis.asyncio import Redis
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from mirador_service.config.settings import Settings, get_settings
 from mirador_service.customer.dtos import (
     CustomerCreate,
     CustomerPage,
@@ -35,6 +36,10 @@ from mirador_service.customer.recent_buffer import RecentCustomerBuffer
 from mirador_service.customer.repository import CustomerRepository
 from mirador_service.db.base import get_db_session
 from mirador_service.integration.redis_client import get_redis
+from mirador_service.messaging.customer_event import (
+    CustomerCreatedEvent,
+    publish_customer_created,
+)
 
 router = APIRouter(prefix="/customers", tags=["Customer"])
 
@@ -91,8 +96,14 @@ async def create_customer(
     body: CustomerCreate,
     db: Annotated[AsyncSession, Depends(get_db_session)],
     redis: Annotated[Redis, Depends(get_redis)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> CustomerResponse:
-    """Creates a new customer. 409 on duplicate email. Adds to recent buffer."""
+    """Creates a new customer. 409 on duplicate email. Adds to recent buffer.
+
+    Publishes a CustomerCreatedEvent on customer.created (fire-and-forget).
+    Both Redis buffer + Kafka publish are best-effort — neither breaks
+    the create flow if their backend is down.
+    """
     try:
         created = await CustomerRepository.create(db, name=body.name, email=body.email)
     except IntegrityError as exc:
@@ -102,12 +113,21 @@ async def create_customer(
         ) from exc
     dto = CustomerResponse.model_validate(created)
     # Best-effort buffer add — Redis outage MUST NOT break the create flow.
-    # Log only ; the next POST or background re-sync will recover the buffer.
     try:
         await RecentCustomerBuffer(redis).add(dto)
     except Exception as exc:
-        # TODO : structured log via structlog when middleware is wired
         print(f"recent_buffer_add_failed id={dto.id} cause={exc}")
+    # Best-effort Kafka FAF — Kafka outage MUST NOT break the create flow.
+    # The producer singleton from kafka_client is None if Kafka isn't started.
+    # Re-import _producer at call time to pick up the latest module state
+    # (if Kafka was started after app boot).
+    from mirador_service.messaging import kafka_client
+
+    await publish_customer_created(
+        kafka_client._producer,
+        settings.kafka.customer_created_topic,
+        CustomerCreatedEvent(id=dto.id, name=dto.name, email=dto.email),
+    )
     return dto
 
 

@@ -1,0 +1,46 @@
+# Quality stage : SonarCloud analysis (mirror of svc sonarcloud job)
+#
+# Reuses the existing SonarCloud organization `mirador1` (svc + UI projects
+# already imported). The Python project key is `mirador1_mirador-service-python`.
+#
+# Setup (one-time, manual via SonarCloud UI) :
+#   1. Visit https://sonarcloud.io/projects/create → import GitLab project
+#      `mirador1/mirador-service-python` into the `mirador1` org.
+#   2. Generate a token at https://sonarcloud.io/account/security
+#   3. Set GitLab CI variable `SONAR_TOKEN` (group-level, masked).
+#
+# Runs after unit-tests so coverage.xml is uploaded.
+
+sonarcloud:
+  stage: validate
+  image: sonarsource/sonar-scanner-cli:11.5.0.2154_7.3.0
+  tags:
+    - macbook-local
+  needs:
+    - unit-tests
+  rules:
+    # Run on main + every MR. Skip if SONAR_TOKEN missing (e.g. forks).
+    - if: $SONAR_TOKEN == null
+      when: never
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  variables:
+    SONAR_USER_HOME: "$CI_PROJECT_DIR/.sonar"
+    GIT_DEPTH: "0"  # SonarCloud needs full history for blame
+  cache:
+    key: sonar-${CI_PROJECT_NAME}
+    paths:
+      - .sonar/cache
+  script:
+    - sonar-scanner
+        -Dsonar.host.url=https://sonarcloud.io
+        -Dsonar.organization=mirador1
+        -Dsonar.projectKey=mirador1_mirador-service-python
+        -Dsonar.projectName="Mirador Service (Python)"
+        -Dsonar.sources=src
+        -Dsonar.tests=tests
+        -Dsonar.python.coverage.reportPaths=coverage.xml
+        -Dsonar.python.version=3.13
+        -Dsonar.exclusions="**/__pycache__/**,**/migrations/**,alembic/**"
+        -Dsonar.qualitygate.wait=false
+  allow_failure: true  # TODO 2026-05-25 — flip after first 5 green runs

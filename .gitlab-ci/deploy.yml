@@ -1,0 +1,69 @@
+# Deploy stage : k8s manifests apply (mirror of svc deploy job)
+#
+# Two deploy targets :
+#   deploy:staging — auto on main, applies infra/k8s/ to the staging cluster
+#                    (when a staging cluster exists ; otherwise skipped)
+#   deploy:prod    — manual, applies the same overlay to prod
+#
+# Both jobs require :
+#   - $KUBE_CONTEXT_STAGING / $KUBE_CONTEXT_PROD : kubectl context name
+#   - $KUBECONFIG_FILE_STAGING / $KUBECONFIG_FILE_PROD : kubeconfig file
+#     (set as GitLab CI File-type variable)
+#   - $REGISTRY_IMAGE_TAG : the image tag to deploy (defaults to $CI_COMMIT_SHA)
+#
+# Skipped on forks + when KUBECONFIG_* not set (graceful degradation).
+
+.deploy-base: &deploy-base
+  stage: deploy
+  image: bitnami/kubectl:1.31.4
+  tags:
+    - macbook-local
+  needs:
+    - docker-build
+  variables:
+    REGISTRY_IMAGE_TAG: $CI_COMMIT_SHA
+  before_script:
+    - export KUBECONFIG="$KUBECONFIG_FILE"
+
+deploy:staging:
+  <<: *deploy-base
+  rules:
+    - if: $KUBECONFIG_FILE_STAGING == null
+      when: never
+    - if: $CI_COMMIT_BRANCH == "main"
+  variables:
+    KUBECONFIG_FILE: $KUBECONFIG_FILE_STAGING
+    KUBE_CONTEXT: $KUBE_CONTEXT_STAGING
+  script:
+    - kubectl config use-context "$KUBE_CONTEXT"
+    - kubectl apply -k infra/k8s/base
+    # Pin the Deployment's image to the just-built tag (overrides
+    # kustomization.yaml's `newTag: latest` default).
+    - kubectl set image -n mirador deployment/mirador-service-python
+        app="$CI_REGISTRY_IMAGE:$REGISTRY_IMAGE_TAG"
+    - kubectl rollout status -n mirador deployment/mirador-service-python --timeout=5m
+  environment:
+    name: staging
+    url: https://staging.mirador.example.com
+  allow_failure: true  # TODO 2026-05-25 — flip when staging cluster exists
+
+deploy:prod:
+  <<: *deploy-base
+  rules:
+    - if: $KUBECONFIG_FILE_PROD == null
+      when: never
+    - if: $CI_COMMIT_TAG =~ /^stable-v[0-9]+\.[0-9]+\.[0-9]+$/
+      when: manual  # never auto-deploy prod ; always require human click
+  variables:
+    KUBECONFIG_FILE: $KUBECONFIG_FILE_PROD
+    KUBE_CONTEXT: $KUBE_CONTEXT_PROD
+    REGISTRY_IMAGE_TAG: $CI_COMMIT_TAG
+  script:
+    - kubectl config use-context "$KUBE_CONTEXT"
+    - kubectl apply -k infra/k8s/base
+    - kubectl set image -n mirador deployment/mirador-service-python
+        app="$CI_REGISTRY_IMAGE:$REGISTRY_IMAGE_TAG"
+    - kubectl rollout status -n mirador deployment/mirador-service-python --timeout=5m
+  environment:
+    name: production
+    url: https://api.mirador.example.com
