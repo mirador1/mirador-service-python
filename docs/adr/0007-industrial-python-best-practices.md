@@ -181,11 +181,18 @@ CI delta tracking. Not yet implemented — TODO Étape next.
 
 ## Validation
 
-- `uv run pytest -q` → 98 tests passing, coverage 83.45 %.
-- `uv run ruff check .` → All checks passed.
-- `uv run mypy src` → Success on 41 source files.
-- `uv run mkdocs build --strict` → Success.
-- Lefthook hooks installed + verified (commit-msg + pre-commit + pre-push).
+Live numbers after the implementation batch (2026-04-25) :
+
+- `uv run pytest -q` → **127 tests passing, coverage 90.21 %** (was 98 / 83.55 %).
+- `uv run ruff check . && ruff format --check .` → All checks passed (78 files).
+- `uv run mypy src` → Success on 41 source files (strict mode).
+- `uv run lint-imports --config .importlinter` → 4 contracts kept, 0 broken.
+- `uv run mkdocs build --strict` → Success (autodoc, ADR index, reference).
+- Lefthook hooks installed + verified : commit-msg (conventional) + pre-commit
+  (ruff + ruff-format + yaml + dockerfile + ci-lint + env-keys) + pre-push
+  (pytest + mypy + import-linter).
+- 8 property-based tests via hypothesis (JWT round-trip, DTOs, LIFO buffer).
+- pytest `--cov-fail-under=90` ratchet — future regressions break the build.
 
 ## See also
 
