@@ -71,15 +71,12 @@ async def enrich_customer(
         email=customer.email,
     )
     try:
-        reply = await enrichment.request_reply(
-            request, timeout_s=float(settings.kafka.enrich_timeout_seconds)
-        )
+        reply = await enrichment.request_reply(request, timeout_s=float(settings.kafka.enrich_timeout_seconds))
     except TimeoutError as exc:
         raise HTTPException(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             detail=(
-                f"Kafka enrichment did not reply within "
-                f"{settings.kafka.enrich_timeout_seconds}s for customer {id_}"
+                f"Kafka enrichment did not reply within " f"{settings.kafka.enrich_timeout_seconds}s for customer {id_}"
             ),
         ) from exc
     return EnrichedCustomerResponse(

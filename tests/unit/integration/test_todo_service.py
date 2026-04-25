@@ -32,9 +32,7 @@ async def test_get_todos_returns_payload_on_200() -> None:
 async def test_get_todos_returns_empty_on_5xx_after_retries() -> None:
     """After 3 failed attempts (all 503), returns [] graceful fallback."""
     async with respx.mock:
-        respx.get("https://jsonplaceholder.typicode.com/users/2/todos").mock(
-            return_value=httpx.Response(503)
-        )
+        respx.get("https://jsonplaceholder.typicode.com/users/2/todos").mock(return_value=httpx.Response(503))
         service = TodoService()
         try:
             result = await service.get_todos(2)

@@ -19,9 +19,7 @@ pytestmark = pytest.mark.integration
 
 @pytest.mark.asyncio
 async def test_create_persists_to_postgres(postgres_session: AsyncSession) -> None:
-    customer = await CustomerRepository.create(
-        postgres_session, name="Alice", email="alice@example.com"
-    )
+    customer = await CustomerRepository.create(postgres_session, name="Alice", email="alice@example.com")
     await postgres_session.commit()
     assert customer.id is not None
     assert customer.created_at is not None  # server-default sa.func.now() populated
@@ -34,14 +32,10 @@ async def test_unique_email_violation_raises_integrity_error(
     """Postgres raises IntegrityError on the INSERT itself (asyncpg),
     not deferred to commit — repository.create()'s session.flush() is
     where the violation surfaces."""
-    await CustomerRepository.create(
-        postgres_session, name="Bob", email="dup@example.com"
-    )
+    await CustomerRepository.create(postgres_session, name="Bob", email="dup@example.com")
     await postgres_session.commit()
     with pytest.raises(IntegrityError):
-        await CustomerRepository.create(
-            postgres_session, name="Bob2", email="dup@example.com"
-        )
+        await CustomerRepository.create(postgres_session, name="Bob2", email="dup@example.com")
 
 
 @pytest.mark.asyncio

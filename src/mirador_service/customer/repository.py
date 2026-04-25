@@ -39,13 +39,9 @@ class CustomerRepository:
         count_stmt = select(func.count()).select_from(Customer)
         if search:
             pattern = f"%{search.lower()}%"
-            stmt = stmt.where(
-                func.lower(Customer.name).like(pattern)
-                | func.lower(Customer.email).like(pattern)
-            )
+            stmt = stmt.where(func.lower(Customer.name).like(pattern) | func.lower(Customer.email).like(pattern))
             count_stmt = count_stmt.where(
-                func.lower(Customer.name).like(pattern)
-                | func.lower(Customer.email).like(pattern)
+                func.lower(Customer.name).like(pattern) | func.lower(Customer.email).like(pattern)
             )
 
         # Count for pagination metadata

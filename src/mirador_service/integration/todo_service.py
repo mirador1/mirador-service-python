@@ -54,7 +54,8 @@ class TodoService:
         except Exception as exc:
             logger.warning(
                 "todo_fetch_failed user_id=%s reason=%s — returning empty list",
-                user_id, exc,
+                user_id,
+                exc,
             )
             return []
 

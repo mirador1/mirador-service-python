@@ -59,18 +59,14 @@ async def test_enrichment_round_trip_against_real_kafka(kafka_bootstrap: str) ->
     async def request_loop() -> None:
         async for msg in request_consumer:
             req = CustomerEnrichRequest.model_validate_json(msg.value)
-            cid = next(
-                v.decode() for k, v in msg.headers if k == "correlation-id"
-            )
+            cid = next(v.decode() for k, v in msg.headers if k == "correlation-id")
             await service.handle_request(req, cid)
             return  # one round-trip is enough
 
     async def reply_loop() -> None:
         async for msg in reply_consumer:
             reply = CustomerEnrichReply.model_validate_json(msg.value)
-            cid = next(
-                v.decode() for k, v in msg.headers if k == "correlation-id"
-            )
+            cid = next(v.decode() for k, v in msg.headers if k == "correlation-id")
             service.deliver_reply(cid, reply)
             return
 
