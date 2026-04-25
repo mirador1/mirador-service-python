@@ -14,7 +14,11 @@ keywords = ["fastapi", "demo", "observability", "kafka", "redis", "opentelemetry
 # `pin every upstream reference` rule (no floating versions).
 dependencies = [
     # Web framework — mirror of Spring Boot Web MVC
-    "fastapi==0.115.5",
+    "fastapi==0.136.1",  # bumped 2026-04-25 — pulls starlette>=0.46.0
+    # Explicit starlette pin > 0.49.1 to dodge CVE-2025-54121 + CVE-2025-62727
+    # (both tickets surfaced by pip-audit in CI ; fastapi's lower bound 0.46.0
+    # would otherwise leave us on a vulnerable starlette).
+    "starlette>=0.49.1",
     "uvicorn[standard]==0.34.0",
     "gunicorn==23.0.0",
     # DTO + validation — mirror of Jackson + Bean Validation
@@ -55,8 +59,10 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     # Test framework — mirror of JUnit 5 + Mockito
-    "pytest==8.3.4",
-    "pytest-asyncio==0.25.2",
+    # Bumped 2026-04-25 to 9.0.3 — fixes CVE-2025-71176 (TOCTOU race in
+    # tmp_path fixture). pip-audit caught it.
+    "pytest==9.0.3",
+    "pytest-asyncio==1.3.0",  # bumped 2026-04-25 — 0.25 capped pytest at <9 (blocked CVE fix)
     "pytest-cov==6.0.0",
     "pytest-mock==3.14.0",
     "httpx==0.28.1",
@@ -72,6 +78,9 @@ dev = [
     "mypy>=1.18",
     # Architecture tests — mirror of ArchUnit
     "import-linter==2.0",
+    # CVE scanning — mirror of OWASP Dependency-Check (Java) + npm-audit (UI).
+    # Per ADR-0007 §9. Wired in CI via .gitlab-ci/quality.yml :: pip-audit.
+    "pip-audit>=2.7.3",
     # Container tests — mirror of Testcontainers
     "testcontainers[postgres,redis,kafka]==4.9.0",
 ]

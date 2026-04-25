@@ -11,6 +11,45 @@
 #
 # Runs after unit-tests so coverage.xml is uploaded.
 
+# pip-audit — CVE scanning of pyproject.toml + uv.lock against PyPI
+# Advisory Database. Mirror of npm-audit (UI side) + OWASP DC (Java side).
+# Per ADR-0007 §9 ("CVE checks TODO") + global CLAUDE.md "pin every
+# upstream reference" rule — pinning is half the story, the other half
+# is knowing when a pinned version becomes vulnerable.
+#
+# Strict mode : fails on ANY known vuln (no severity floor). For a
+# portfolio demo this is fine ; production projects often exempt LOW
+# until they ship a fix, via `--ignore-vuln <PYSEC-id>` flags + dated
+# review tickets. Stays in the validate stage so it gates merges.
+pip-audit:
+  image: ghcr.io/astral-sh/uv:python3.14-bookworm-slim
+  stage: validate
+  tags:
+    - macbook-local
+  needs: []
+  before_script:
+    - uv sync --all-extras --frozen
+  script:
+    # Audit the active virtualenv (= what uv actually installed). --strict
+    # fails on ANY vuln. --ignore-vuln carries dated exit-tickets for vulns
+    # we can't fix yet (no upstream fix released).
+    #
+    # CVE-2026-3219 (pip 26.0.1) — bundled in uv's Python distribution,
+    #   no fix released upstream as of 2026-04-25. Re-check monthly ;
+    #   remove this ignore once pip ships the patched version. Risk is
+    #   low : pip is only invoked by pip-audit itself + as a fallback,
+    #   not by the running app.
+    # pip-audit returns non-zero on any vuln (no --strict needed for that —
+    # it's the default). The trailing "Skip Reason" line for our own
+    # mirador-service package is informational, doesn't break the exit code.
+    - uv run pip-audit --ignore-vuln CVE-2026-3219
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  # No allow_failure : pip-audit MUST stay green. New CVE = blocked merge
+  # = forced bump. The point is to never silently ship a known-vulnerable
+  # version.
+
 sonarcloud:
   # stage: test (was validate) — sonarcloud needs the coverage.xml artifact
   # produced by unit-tests, so it MUST run in test or later. Putting it in
