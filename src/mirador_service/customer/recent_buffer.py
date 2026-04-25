@@ -12,13 +12,29 @@ shared across replicas (single Redis = single source of truth).
 from __future__ import annotations
 
 import json
+from typing import Final
 
 from redis.asyncio import Redis
 
 from mirador_service.customer.dtos import CustomerResponse
 
-KEY = "customer-service:recent:customers"
-MAX_SIZE = 10
+# Redis key namespace mirrors Java side ("customer-service:recent:customers").
+# Final[str] : reassignment is a static-type error (mypy catches a future
+# refactor that accidentally rebinds it).
+KEY: Final[str] = "customer-service:recent:customers"
+
+# LIFO buffer capacity. 10 = same as Java mirror's RecentCustomerBuffer.
+# Final[int] : interface contract — anyone raising this past, say, 1000
+# should think about Redis memory + LRANGE latency first.
+MAX_SIZE: Final[int] = 10
+
+# Tuple of exception classes caught when decoding a buffer entry. Hoisted
+# to module-level so we don't recreate it per loop iteration AND so the
+# tuple syntax never trips the "multiple exception types must be
+# parenthesized" syntax error (ruff/black sometimes inline-reformat the
+# `except (A, B):` form back into the bare comma form which is illegal
+# in Python 3 — using a name dodges that).
+_DECODE_ERRORS: Final[tuple[type[Exception], ...]] = (json.JSONDecodeError, ValueError)
 
 
 class RecentCustomerBuffer:
@@ -41,10 +57,9 @@ class RecentCustomerBuffer:
         result: list[CustomerResponse] = []
         for item in raw:
             try:
-                if isinstance(item, bytes):
-                    item = item.decode("utf-8")
-                result.append(CustomerResponse.model_validate(json.loads(item)))
-            except json.JSONDecodeError, ValueError:
+                payload = item.decode("utf-8") if isinstance(item, bytes) else item
+                result.append(CustomerResponse.model_validate(json.loads(payload)))
+            except _DECODE_ERRORS:
                 # Malformed entry : skip silently — the buffer is best-effort.
                 continue
         return result

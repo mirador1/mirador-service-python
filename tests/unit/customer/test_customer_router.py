@@ -106,6 +106,70 @@ async def test_delete_returns_204(client: AsyncClient) -> None:
     assert fetched.status_code == 404
 
 
+# ── Error-branch coverage : PUT/PATCH/DELETE 404 + PUT/PATCH 409 ──────────────
+
+
+@pytest.mark.asyncio
+async def test_put_404_when_id_missing(client: AsyncClient) -> None:
+    """PUT on non-existent id surfaces NoResultFound → 404."""
+    response = await client.put(
+        "/customers/9999",
+        json={"name": "Ghost", "email": "ghost@example.com"},
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_put_409_on_duplicate_email(client: AsyncClient) -> None:
+    """PUT that would set email to an already-used value → 409 (UNIQUE
+    constraint violation surfaces as IntegrityError → 409 Conflict).
+
+    Uses unique emails (test fixture isolates the DB per session, but
+    other tests in this file may have created customers with the
+    "obvious" emails already).
+    """
+    a = await client.post("/customers", json={"name": "PutA", "email": "put-a@conflict.example.com"})
+    b = await client.post("/customers", json={"name": "PutB", "email": "put-b@conflict.example.com"})
+    assert a.status_code == 201, a.text
+    assert b.status_code == 201, b.text
+    a_id = a.json()["id"]
+    b_email = b.json()["email"]
+
+    response = await client.put(
+        f"/customers/{a_id}",
+        json={"name": "A-renamed", "email": b_email},
+    )
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_patch_404_when_id_missing(client: AsyncClient) -> None:
+    """PATCH on non-existent id → 404."""
+    response = await client.patch("/customers/9999", json={"name": "Ghost"})
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_patch_409_on_duplicate_email(client: AsyncClient) -> None:
+    """PATCH that would set email to an already-used value → 409."""
+    a = await client.post("/customers", json={"name": "PatchA", "email": "patch-a@conflict.example.com"})
+    b = await client.post("/customers", json={"name": "PatchB", "email": "patch-b@conflict.example.com"})
+    assert a.status_code == 201, a.text
+    assert b.status_code == 201, b.text
+    a_id = a.json()["id"]
+    b_email = b.json()["email"]
+
+    response = await client.patch(f"/customers/{a_id}", json={"email": b_email})
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_delete_404_when_id_missing(client: AsyncClient) -> None:
+    """DELETE on non-existent id → 404 (NoResultFound branch)."""
+    response = await client.delete("/customers/9999")
+    assert response.status_code == 404
+
+
 @pytest.mark.asyncio
 async def test_list_pagination(client: AsyncClient) -> None:
     # Create 5 customers

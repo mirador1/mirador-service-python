@@ -128,3 +128,11 @@ pre-push:
     mypy-strict:
       run: uv run mypy src
       tags: lint
+
+    import-linter:
+      # Architectural-boundary contracts (mirror of ArchUnit on Java side).
+      # Catches new imports that violate the layered/forbidden/independence
+      # rules defined in .importlinter — much faster than discovering it via
+      # CI 10 minutes later.
+      run: uv run lint-imports --config .importlinter
+      tags: arch

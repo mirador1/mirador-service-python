@@ -19,7 +19,10 @@ env/
 
 # uv
 .uv-cache/
-uv.lock
+# uv.lock is COMMITTED for reproducible CI builds (`uv sync --frozen` in
+# .gitlab-ci/test.yml requires it). Per ~/.claude/CLAUDE.md "Pin every
+# upstream reference. No floating tags." — same rule that pins exact
+# versions in pyproject.toml extends to the lockfile.
 
 # Testing
 .pytest_cache/

@@ -22,7 +22,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from mirador_service.config.settings import Settings, get_settings
 from mirador_service.customer.repository import CustomerRepository
 from mirador_service.db.base import get_db_session
-from mirador_service.integration.todo_service import TodoService
+from mirador_service.integration.bio_service import BioService
+from mirador_service.integration.todo_service import Todo, TodoService
 from mirador_service.messaging.dtos import (
     CustomerEnrichRequest,
     EnrichedCustomerResponse,
@@ -30,9 +31,17 @@ from mirador_service.messaging.dtos import (
 from mirador_service.messaging.enrichment import EnrichmentService
 from mirador_service.messaging.kafka_client import get_enrichment_service
 
+# Bio response shape on the wire : { "bio": "<text>" }. Aliased for clarity
+# at the def site (PEP 695 `type` keyword).
+type BioResponse = dict[str, str]
+
 router = APIRouter(prefix="/customers", tags=["Customer — enrichment"])
 
+# Lazy singletons — share httpx connection pools across requests. Same
+# pattern as Java's @Bean-scoped service singletons. None until first
+# Depends() resolution to avoid touching the network on app boot.
 _todo_service: TodoService | None = None
+_bio_service: BioService | None = None
 
 
 def get_todo_service() -> TodoService:
@@ -41,6 +50,14 @@ def get_todo_service() -> TodoService:
     if _todo_service is None:
         _todo_service = TodoService()
     return _todo_service
+
+
+def get_bio_service() -> BioService:
+    """FastAPI Depends provider — lazy singleton for the Ollama HTTP client."""
+    global _bio_service
+    if _bio_service is None:
+        _bio_service = BioService()
+    return _bio_service
 
 
 @router.get("/{id_}/enrich", response_model=EnrichedCustomerResponse)
@@ -87,12 +104,35 @@ async def enrich_customer(
     )
 
 
+@router.get("/{id_}/bio")
+async def get_customer_bio(
+    id_: int,
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+    bio: Annotated[BioService, Depends(get_bio_service)],
+) -> BioResponse:
+    """Generate a synthetic bio via Ollama LLM (mirror Java's BioService).
+
+    Falls back to a synthetic bio on Ollama outage (graceful degradation —
+    never returns 5xx, returns 200 with degraded payload). 404 only if the
+    customer doesn't exist in our DB.
+    """
+    try:
+        customer = await CustomerRepository.find_by_id_or_raise(db, id_)
+    except NoResultFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    text = await bio.generate_bio(customer.name, customer.email)
+    return {"bio": text}
+
+
 @router.get("/{id_}/todos")
 async def get_customer_todos(
     id_: int,
     db: Annotated[AsyncSession, Depends(get_db_session)],
     todos: Annotated[TodoService, Depends(get_todo_service)],
-) -> list[dict[str, object]]:
+) -> list[Todo]:
     """Fetch todos for a customer from JSONPlaceholder (external API).
 
     Demonstrates graceful degradation : if the external API is down or

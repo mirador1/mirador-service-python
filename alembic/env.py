@@ -73,7 +73,7 @@ def do_run_migrations(connection: Connection) -> None:
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
-        compare_type=True,           # detect column type changes (VARCHAR(120) → 200)
+        compare_type=True,  # detect column type changes (VARCHAR(120) → 200)
         compare_server_default=True,  # detect default-value changes
     )
     with context.begin_transaction():

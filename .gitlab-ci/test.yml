@@ -27,6 +27,10 @@ unit-tests:
         path: coverage.xml
     expire_in: 30 days
 
+# Note : the import-linter job lives in .gitlab-ci/lint.yml — it shares
+# the .uv-base anchor there + has cleaner stage/needs wiring. Don't
+# re-define it here.
+
 integration-tests:
   <<: *uv-base
   stage: test

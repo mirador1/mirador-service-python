@@ -12,7 +12,11 @@
 # Runs after unit-tests so coverage.xml is uploaded.
 
 sonarcloud:
-  stage: validate
+  # stage: test (was validate) — sonarcloud needs the coverage.xml artifact
+  # produced by unit-tests, so it MUST run in test or later. Putting it in
+  # validate caused a structural error : "needs unit-tests is not defined
+  # in current or prior stages". Fixed 2026-04-25.
+  stage: test
   image: sonarsource/sonar-scanner-cli:11.5.0.2154_7.3.0
   tags:
     - macbook-local
