@@ -33,10 +33,37 @@ integration-tests:
   needs:
     - unit-tests
   rules:
-    # Integration tests need testcontainers (Docker socket) — only on macbook-local
-    # which has Docker. SaaS shared runners don't.
+    # Integration tests need testcontainers (Docker socket) — primary path
+    # is macbook-local (already has Docker). When that runner is offline,
+    # the docker:dind service block lets the job fall back to any GitLab
+    # runner with privileged mode (SaaS or self-hosted) — testcontainers
+    # connects to the nested Docker via DOCKER_HOST=tcp://docker:2375.
     - if: $CI_COMMIT_BRANCH == "main"
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  services:
+    # docker:dind for testcontainers nested-container spawn (Postgres / Kafka).
+    # Pin major to dodge breaking changes on `:latest`.
+    - name: docker:28-dind
+      alias: docker
+      command: ["--tls=false"]  # tls=false for in-cluster comm via tcp://docker:2375
+    # Postgres service for tests that prefer GitLab-provided over testcontainers.
+    # Currently unused (testcontainers spawn their own) but available for
+    # tests that flip to env-driven DSN via MIRADOR_DB__* in CI.
+    - name: postgres:16.6-alpine
+      alias: postgres
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""  # disable TLS, we're inside the same network namespace
+    POSTGRES_DB: mirador
+    POSTGRES_USER: mirador
+    POSTGRES_PASSWORD: mirador
+    # When tests want to use the GitLab postgres service, MIRADOR_DB__* picks up
+    # the alias hostname.
+    MIRADOR_DB__HOST: postgres
+    MIRADOR_DB__USER: mirador
+    MIRADOR_DB__PASSWORD: mirador
+    MIRADOR_DB__NAME: mirador
   script:
     - uv run pytest tests/integration -v -m integration --junitxml=junit-integration.xml
   artifacts:

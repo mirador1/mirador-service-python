@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Mirror of the Java side's deploy/kubernetes/base/backend/kustomization.yaml.
+# Common labels + namespace applied to every resource via the kustomize CLI :
+#   kubectl apply -k infra/k8s/base
+#
+# Overlays go under infra/k8s/overlays/<env>/ (local / staging / prod).
+# Each overlay can patch the image, replicas, resource limits, etc.
+
+namespace: mirador
+
+labels:
+  - includeSelectors: true
+    pairs:
+      app.kubernetes.io/name: mirador-service-python
+      app.kubernetes.io/component: backend
+      app.kubernetes.io/part-of: mirador
+      app.kubernetes.io/managed-by: kustomize
+
+resources:
+  - serviceaccount.yaml
+  - configmap.yaml
+  - secret.example.yaml         # EXAMPLE only — overlays override with real Secret
+  - service.yaml
+  - deployment.yaml
+  - hpa.yaml
+  - poddisruptionbudget.yaml
+
+images:
+  - name: registry.gitlab.com/mirador1/mirador-service-python
+    newTag: latest                # overlays pin to a specific stable-vX.Y.Z tag
