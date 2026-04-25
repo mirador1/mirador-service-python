@@ -22,6 +22,8 @@ from mirador_service.customer.router import router as customer_router
 from mirador_service.db.base import reset_engine
 from mirador_service.integration.redis_client import close_redis
 from mirador_service.messaging.kafka_client import start_kafka, stop_kafka
+from mirador_service.middleware.logging import configure_logging
+from mirador_service.middleware.setup import register_middleware
 from mirador_service.observability.otel import init_otel, shutdown_otel
 
 logger = logging.getLogger(__name__)
@@ -62,7 +64,10 @@ def create_app() -> FastAPI:
     """App factory — used by uvicorn (`mirador_service.app:app`) and tests."""
     # Fail-fast on broken env config at app construction time vs first request
     # (same pattern as Spring's @PostConstruct on @Configuration beans).
-    get_settings()
+    settings = get_settings()
+    # Wire structlog FIRST so subsequent setup logs use the configured format.
+    configure_logging(dev_mode=settings.dev_mode)
+
     app = FastAPI(
         title="Mirador Customer Service (Python)",
         version=__version__,
@@ -70,7 +75,8 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # TODO : register CORS, request-id, logging, rate-limit middleware
+    register_middleware(app, settings)
+
     app.include_router(actuator_router)
     app.include_router(auth_router)
     app.include_router(customer_router)
