@@ -1,0 +1,102 @@
+# Mirador-service-python SLO definitions — Sloth format.
+# Mirror of the Java side's slo.yaml ; same 3 SLOs, adjusted for Python's
+# starlette-prometheus metric names.
+#
+# Generate :
+#   sloth generate -i docs/slo/slo.yaml -o /tmp/mirador-py-slo-rules.yaml
+#   python3 docs/slo/wrap-as-prometheusrule.py
+#
+# References :
+# - https://sre.google/workbook/alerting-on-slos/
+# - https://sloth.dev/specs/v1/
+
+version: "prometheus/v1"
+service: "mirador-service-python"
+labels:
+  team: "mirador"
+  tier: "demo"
+  app: "mirador-service-python"
+slos:
+  # ───── SLO 1 : Availability ────────────────────────────────────────────────
+  - name: "availability"
+    objective: 99
+    description: "99% of HTTP requests succeed (non-5xx) over 30d. Budget = 432 min/month."
+    sli:
+      events:
+        # starlette_requests_total has labels (method, path_template, status_code)
+        error_query: |
+          sum(rate(starlette_requests_total{job="mirador-service-python",status_code=~"5.."}[{{.window}}]))
+        total_query: |
+          sum(rate(starlette_requests_total{job="mirador-service-python"}[{{.window}}]))
+    alerting:
+      name: MiradorPyServiceAvailabilitySLO
+      labels:
+        category: "availability"
+      annotations:
+        summary: "Availability SLO error budget burning"
+        runbook_url: "https://gitlab.com/mirador1/mirador-service-python/-/blob/main/docs/runbooks/slo-availability.md"
+      page_alert:
+        labels:
+          severity: critical
+          channel: pager
+      ticket_alert:
+        labels:
+          severity: warning
+          channel: ticket
+
+  # ───── SLO 2 : Latency p99 ─────────────────────────────────────────────────
+  - name: "latency-p99"
+    objective: 99
+    description: "99% of HTTP requests complete in < 500ms (p99) over 30d."
+    sli:
+      events:
+        # starlette_request_duration_seconds_bucket with le="0.5"
+        error_query: |
+          (
+            sum(rate(starlette_request_duration_seconds_count{job="mirador-service-python"}[{{.window}}]))
+            -
+            sum(rate(starlette_request_duration_seconds_bucket{job="mirador-service-python",le="0.5"}[{{.window}}]))
+          )
+        total_query: |
+          sum(rate(starlette_request_duration_seconds_count{job="mirador-service-python"}[{{.window}}]))
+    alerting:
+      name: MiradorPyServiceLatencyP99SLO
+      labels:
+        category: "latency"
+      annotations:
+        summary: "Latency SLO error budget burning (p99 > 500ms)"
+        runbook_url: "https://gitlab.com/mirador1/mirador-service-python/-/blob/main/docs/runbooks/slo-latency.md"
+      page_alert:
+        labels:
+          severity: critical
+          channel: pager
+      ticket_alert:
+        labels:
+          severity: warning
+          channel: ticket
+
+  # ───── SLO 3 : Customer enrichment success ────────────────────────────────
+  - name: "enrichment-success"
+    objective: 99.5
+    description: "99.5% of /customers/{id}/enrich calls succeed (no 504 timeout) over 30d."
+    sli:
+      events:
+        error_query: |
+          sum(rate(starlette_requests_total{job="mirador-service-python",path_template=~".*enrich.*",status_code="504"}[{{.window}}]))
+        total_query: |
+          sum(rate(starlette_requests_total{job="mirador-service-python",path_template=~".*enrich.*"}[{{.window}}]))
+    alerting:
+      name: MiradorPyEnrichmentSuccessSLO
+      labels:
+        category: "business"
+      annotations:
+        summary: "Enrichment endpoint timing out — Kafka may be down"
+        runbook_url: "https://gitlab.com/mirador1/mirador-service-python/-/blob/main/docs/runbooks/slo-enrichment.md"
+      page_alert:
+        labels:
+          severity: critical
+          channel: pager
+      ticket_alert:
+        labels:
+          severity: warning
+          channel: ticket

@@ -1,33 +1,82 @@
 # mirador-service-python
 
-Python mirror of [`mirador-service`](https://gitlab.com/mirador1/mirador-service)
-— customer service demo built with FastAPI + Pydantic v2 + SQLAlchemy 2.x async.
+<sub>**English** · [Français](README.fr.md)</sub>
 
-**Same philosophy as the Java original** : industrial-grade demo project showing
-modern observability (OpenTelemetry, Prometheus), security (JWT auth), event-
-driven patterns (Kafka request-reply), caching (Redis), and CI/CD discipline
-(GitLab pipelines, ADRs, conventional commits, pinned dependencies).
+[![pipeline](https://gitlab.com/mirador1/mirador-service-python/badges/main/pipeline.svg)](https://gitlab.com/mirador1/mirador-service-python/-/pipelines)
+[![coverage](https://img.shields.io/badge/coverage-90.21%25-success)](https://gitlab.com/mirador1/mirador-service-python/-/pipelines)
+[![Python 3.14](https://img.shields.io/badge/Python-3.14_+_3.13_3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.136-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+![SLO 99.5%](https://img.shields.io/badge/SLO-99.5%25_+_burn_rate-2D7FF9)
+![mypy strict](https://img.shields.io/badge/mypy-strict-blue)
+
+## What this project proves
+
+Python mirror of [`mirador-service-java`](https://gitlab.com/mirador1/mirador-service-java) —
+same industrial-grade backend concerns, expressed in the modern Python stack :
+
+- **Industrial Customer onboarding pipeline** (registration → validation → external
+  enrichment via JSONPlaceholder + Ollama LLM → Kafka audit events → state
+  tracking → diagnostic incident endpoints) — not a CRUD demo.
+- **Type discipline emulating Java** : `mypy --strict` + Pydantic v2 + `Final` /
+  `Literal` / `TypeAlias` (PEP 695) decorators everywhere ; **127 unit tests**,
+  **coverage 90.21%** with `--cov-fail-under=90` blocking gate ; **8 hypothesis
+  property-based tests** ; **import-linter** = Python's ArchUnit.
+- **Same observability** : OpenTelemetry (traces + logs + metrics) → LGTM stack,
+  starlette-prometheus exporter, **3 SLOs defined-as-code via Sloth** with
+  multi-window multi-burn-rate alerting (Google SRE Workbook).
+- **Same security supply chain** : JWT (pyjwt) + bcrypt 5.x rotation, **pip-audit
+  CVE gate** (3 CVEs fixed during dev), `gitleaks`, dated `--ignore-vuln` exit-tickets.
+- **Same CI discipline** : GitLab CI exclusively, group-level runner,
+  conventional-commits, lefthook 3-tier hooks, ruff comprehensive ruleset,
+  multi-arch Docker via buildx.
+
+The Python target is **3.14 (default branch)** — exploring the latest stack —
+but the compat matrix in CI also builds + tests green on **3.12 + 3.13** from
+the same source. Conservative production target = 3.12 (oldest with PEP 695
+`type` keyword + `Final` / `Literal` ergonomics).
+
+See [ADR-0007 — Industrial Python practices](docs/adr/0007-industrial-python-best-practices.md)
+for the 13-decision baseline + [SLO/SLA documentation](docs/slo/).
+
+## TL;DR for hiring managers (60 sec read)
+
+- **Polyrepo demonstrator** : Python implementation of the same industrial backend
+  served by [`mirador-service-java`](https://gitlab.com/mirador1/mirador-service-java).
+  Shared infra + observability + CI templates via [`mirador-service-shared`](https://gitlab.com/mirador1/mirador-service-shared)
+  git submodule (see [polyrepo-vs-monorepo ADR](https://gitlab.com/mirador1/mirador-service-shared/-/blob/main/docs/adr/0057-polyrepo-vs-monorepo.md)).
+- **mypy --strict on 41 source files** : Final / Literal / TypeAlias / PEP 695
+  type aliases, no implicit Any, no untyped defs.
+- **Coverage 90.21%** with `--cov-fail-under=90` hard gate ; 127 unit tests +
+  hypothesis property-based + 5 kafka_client integration tests via testcontainers.
+- **SLO/SLA-as-code** via Sloth : 3 SLOs (availability 99% / latency p99 < 500ms /
+  enrichment 99.5%) over 30d + multi-burn-rate alerting + Grafana dashboard.
+- **pip-audit hard gate** : 3 CVEs caught + fixed during dev (pytest 9.0.3,
+  fastapi 0.136.1, starlette 1.0.0).
 
 ## Tech stack
 
 | Layer | Technology | Mirrors Java's |
 |---|---|---|
-| Web framework | **FastAPI** 0.115 | Spring Boot 4 Web MVC |
-| DTO + validation | **Pydantic** v2.10 | Jackson + Bean Validation |
+| Web framework | **FastAPI** 0.136 | Spring Boot 4 Web MVC |
+| DTO + validation | **Pydantic** v2.11 | Jackson + Bean Validation |
 | ORM | **SQLAlchemy** 2.0 async | Spring Data JPA / Hibernate |
 | Migrations | **Alembic** 1.14 | Flyway |
-| JWT auth | **python-jose** + **passlib** | Spring Security + jjwt |
-| Kafka | **aiokafka** 0.12 | Spring Kafka |
+| JWT auth | **pyjwt** + **bcrypt** 5.x | Spring Security + jjwt |
+| Kafka | **aiokafka** 0.13 | Spring Kafka |
 | Redis | **redis-py** 5.2 (asyncio) | Spring Data Redis |
 | Observability | **OpenTelemetry SDK** + Prometheus | Micrometer + OTel SDK |
+| **SLO/SLA-as-code** | **Sloth** + multi-burn-rate | Sloth (mirror) |
 | Logging | **structlog** | Logback + structured logging |
 | Rate limiting | **slowapi** | bucket4j |
-| Package manager | **uv** | Maven |
-| Test | **pytest** + **pytest-asyncio** | JUnit 5 + Mockito |
-| Lint / Format | **ruff** + **mypy** | Checkstyle + SpotBugs + PMD |
-| Arch tests | **import-linter** | ArchUnit |
+| Package manager | **uv** (Astral) | Maven |
+| Test | **pytest** + **pytest-asyncio** + **hypothesis** | JUnit 5 + Mockito |
+| Property-based | **hypothesis** | jqwik |
+| Benchmarks | **pytest-benchmark** | JMH |
+| Lint / Format | **ruff** + **mypy** strict | Checkstyle + SpotBugs + PMD |
+| Arch tests | **import-linter** (4 contracts) | ArchUnit |
+| CVE scan | **pip-audit** | OWASP Dependency-Check |
 | Container tests | **testcontainers-python** | Testcontainers |
-| Docker | multi-stage + uvicorn | multi-stage + Spring Boot |
+| Docker | multi-stage + uvicorn (Py 3.14 slim) | multi-stage + Spring Boot |
 
 ## Quickstart
 
