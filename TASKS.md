@@ -37,3 +37,64 @@ here ; done items removed (use `git tag -l` for history).
 - 🟢 **Migrate Java's `jvm.config` Comments rule to Python's
   `pytest.ini_options`** : adopt the same dated-TODO comment pattern
   for `allow_failure` shields once we have any.
+
+## 📊 SLO/SLA backlog (post Quick wins ADR-0058)
+
+Quick wins SHIPPED 2026-04-25 : 3 SLOs as code (Sloth) + multi-burn-rate
+alerting + Grafana SLO dashboard + ADR-0058 + sla.md. Below = next iterations.
+
+- 🟢 **Dashboard "SLO breakdown by endpoint"** : current dashboard shows
+  service-wide SLO. Add a 2nd dashboard (or panel row) sliced by
+  `path_template` to identify which endpoints contribute most to the
+  budget burn. Useful when an SLO breach happens — answers "which
+  endpoint is dragging us down ?".
+
+- 🟢 **Chaos-driven SLO demo** : wire `/customers/diagnostic/slow-query`
+  + `db-failure` + `kafka-timeout` to intentionally burn budget for
+  demo purposes. A "demo mode" Grafana annotation that overlays the
+  burn rate timeseries with the chaos test markers. Sells the
+  observability story in 30 seconds.
+
+- 🟢 **Runbook section "What to do when SLO breached"** :
+  `docs/runbooks/slo-availability.md`, `slo-latency.md`, `slo-enrichment.md`
+  (URLs already referenced in `slo.yaml` annotations). Each : symptoms,
+  first investigation steps, common root causes, escalation path,
+  rollback procedure. Currently empty — links 404 on Alertmanager.
+
+- 🟢 **Latency heatmap par endpoint** : Grafana panel using histogram
+  `_bucket` series, x=time × y=latency-bucket, color=request count.
+  Shows tail-latency distribution in one glance — complement to p99
+  SLO compliance.
+
+- 🟢 **Apdex score dashboard** : add `Apdex(0.5s, 2s)` calculation to
+  the SLO dashboard. Apdex = (satisfied + tolerating/2) / total.
+  Single number that captures "user satisfaction" — easier to
+  communicate to non-SRE stakeholders than 3 separate SLOs.
+
+- 🟢 **Monthly SLO review meeting cadence** : document in
+  `docs/slo/review-cadence.md`. What to bring (compliance %, top burn
+  contributors, capacity changes, deploy correlation), who attends,
+  what's the output (tighten/relax SLO, error budget policy update).
+  Currently NOT documented — remove from `sla.md` claim or implement.
+
+## 🎨 README polish (post 2026-04-25 review)
+
+Captured from portfolio review session feedback :
+
+- 🟢 **README.fr.md sync** : Python README.md got a major rewrite 2026-04-25
+  (badges + TL;DR for hiring managers + Sloth/SLO badges + tech stack with
+  hypothesis/pip-audit/Sloth + "Industrial Customer onboarding" reframing).
+  The French version still reflects the old structure — sync needed.
+
+- 🟢 **Add "What this proves for a senior backend architect" matrix** :
+  Java README has it (8-row Concern × Demonstration × Production rationale).
+  Python TL;DR exists but the full matrix doesn't — add the equivalent
+  Python-specific table (mypy strict + cov 90% + hypothesis + import-linter
+  + pip-audit + SLO + kafka_client integration tests).
+
+- 🟢 **Mini-domain rename consideration** : same as Java side — narrative
+  reframing in README done, code still uses `Customer*` classes. Defer.
+
+- 🟢 **mkdocs landing page refresh** : `docs/index.md` should mirror the
+  new README structure (TL;DR + senior architect matrix). Currently shows
+  old "Customer service demo" framing.
