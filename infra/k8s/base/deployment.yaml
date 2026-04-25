@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mirador-service-python
+  namespace: mirador
+  labels:
+    app.kubernetes.io/name: mirador-service-python
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: mirador
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mirador-service-python
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mirador-service-python
+        app.kubernetes.io/component: backend
+        app.kubernetes.io/part-of: mirador
+      annotations:
+        # Force rollout when ConfigMap changes (sha is computed by kustomize).
+        checksum/config: "{{ .Values.configChecksum | default \"manual\" }}"
+    spec:
+      serviceAccountName: mirador-service-python
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: app
+          image: registry.gitlab.com/mirador1/mirador-service-python:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          # k8s probes wired to /actuator/health/{liveness,readiness} per ADR-0003.
+          # Liveness = process up (always returns UP). Readiness = composite
+          # check (DB + Redis + Kafka). Pod leaves Service endpoints when any
+          # downstream fails — same pattern as Java side.
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          # startupProbe : tolerate slow boot (Alembic migrations + first-time
+          # OTel SDK init). Without this, livenessProbe could kill a slow-booting
+          # pod within ~30 s. With startupProbe, the pod has 60 × 5 s = 5 min
+          # to come up before livenessProbe takes over.
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 60
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "512Mi"
+          envFrom:
+            - configMapRef:
+                name: mirador-service-python-config
+            - secretRef:
+                name: mirador-service-python-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+      terminationGracePeriodSeconds: 30

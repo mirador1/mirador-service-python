@@ -7,8 +7,10 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
 
 WORKDIR /app
 
-# Copy dependency files first for layer caching
-COPY pyproject.toml uv.lock* ./
+# Copy dependency files first for layer caching.
+# README.md is referenced by pyproject.toml (`readme = "README.md"`) so uv
+# build needs it present before `--no-install-project` would even resolve.
+COPY pyproject.toml uv.lock* README.md ./
 
 # Install dependencies into .venv ; --frozen mirrors `mvn ci`-style deterministic
 # builds (fails if uv.lock missing / out of date).
@@ -22,7 +24,14 @@ COPY src/ ./src/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
-# ── Stage 2 : Runtime (slim, no uv) ─────────────────────────────────────────
+# ── Stage 2 : Runtime (slim-bookworm, no uv) ───────────────────────────────
+# Tried alpine 2026-04-25 (would save ~130 MB) but pydantic_core's Rust
+# binary copied from the bookworm builder is glibc-only — runtime crashes
+# with `ModuleNotFoundError: pydantic_core._pydantic_core`. To go alpine
+# would require building deps INSIDE alpine (single-stage or alpine
+# builder), which defeats the multi-stage caching benefit. Sticking with
+# slim-bookworm for now ; revisit when uv ships musl wheels for all our
+# Rust-extension deps (pydantic_core, cryptography, bcrypt).
 FROM python:3.13-slim-bookworm AS runtime
 
 # Non-root user (Dockle CIS-DI-0001 + matches Java mirror's spring user)

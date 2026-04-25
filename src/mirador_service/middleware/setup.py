@@ -33,6 +33,31 @@ if TYPE_CHECKING:
 
 # Global limiter — shared across the app. Default 60 requests per minute per
 # IP — sane default for a demo, override per-route via @limiter.limit("10/minute").
+#
+# Storage backend : in-memory by default ; switches to Redis when
+# `MIRADOR_REDIS__HOST` resolves so per-replica counters CAN'T drift in a
+# multi-pod deploy. Same Redis instance used by the recent-customer buffer
+# (Étape 3) so no extra infra. Falls back to memory if Redis is unreachable.
+def _build_limiter(settings: Settings) -> Limiter:
+    """Limiter with Redis backend in prod / multi-replica, memory in dev."""
+    redis_uri = (
+        f"redis://{settings.redis.host}:{settings.redis.port}/{settings.redis.db}"
+    )
+    # SlowAPI's storage_uri="memory://" or "redis://..." — pick redis when
+    # we're not in dev_mode (multi-replica = real risk of counter drift).
+    storage_uri = "memory://" if settings.dev_mode else redis_uri
+    return Limiter(
+        key_func=get_remote_address,
+        default_limits=["60/minute"],
+        storage_uri=storage_uri,
+        # Default strategy = fixed-window. Works consistently across the
+        # memory + redis backends. moving-window requires Redis (not safe
+        # to switch on dev_mode toggle without changing strategy too).
+    )
+
+
+# Default-init for tests + module-level imports — overridden in
+# register_middleware(app, settings) with the proper storage_uri.
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 
 
@@ -72,7 +97,11 @@ def register_middleware(app: FastAPI, settings: Settings) -> None:
     # 4. SlowAPI rate limit (outermost) — 60/min per IP by default. Returns
     #    429 + Retry-After when exceeded. Wired via app.state.limiter +
     #    exception handler.
-    app.state.limiter = limiter
+    # Build the limiter with the proper storage_uri (Redis in prod,
+    # memory in dev). The module-level `limiter` singleton is kept as a
+    # fallback for module-import-time decorators that haven't been wired
+    # to settings yet.
+    app.state.limiter = _build_limiter(settings)
     # slowapi's handler narrows the second arg to RateLimitExceeded ; Starlette's
     # signature wants Exception (contravariant). Safe to ignore — the handler is
     # only invoked when the actual exception is RateLimitExceeded.
