@@ -13,10 +13,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from mirador_service import __version__
+from mirador_service.api.actuator import router as actuator_router
 from mirador_service.auth.router import router as auth_router
 from mirador_service.config.settings import get_settings
 from mirador_service.customer.router import router as customer_router
 from mirador_service.db.base import reset_engine
+from mirador_service.integration.redis_client import close_redis
 
 
 @asynccontextmanager
@@ -33,9 +35,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     # TODO : init OTel SDK + Redis client + Kafka producer/consumer
     yield
-    # Shutdown : close DB engine (releases pool connections)
+    # Shutdown : close in reverse-startup order
+    await close_redis()
     await reset_engine()
-    # TODO : close Redis + Kafka
+    # TODO : close Kafka
 
 
 def create_app() -> FastAPI:
@@ -51,6 +54,7 @@ def create_app() -> FastAPI:
     )
 
     # TODO : register CORS, request-id, logging, rate-limit middleware
+    app.include_router(actuator_router)
     app.include_router(auth_router)
     app.include_router(customer_router)
 

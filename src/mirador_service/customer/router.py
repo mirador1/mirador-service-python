@@ -19,6 +19,7 @@ import math
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
+from redis.asyncio import Redis
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,8 +31,10 @@ from mirador_service.customer.dtos import (
     CustomerResponse,
     CustomerResponseV2,
 )
+from mirador_service.customer.recent_buffer import RecentCustomerBuffer
 from mirador_service.customer.repository import CustomerRepository
 from mirador_service.db.base import get_db_session
+from mirador_service.integration.redis_client import get_redis
 
 router = APIRouter(prefix="/customers", tags=["Customer"])
 
@@ -87,8 +90,9 @@ async def list_customers(
 async def create_customer(
     body: CustomerCreate,
     db: Annotated[AsyncSession, Depends(get_db_session)],
+    redis: Annotated[Redis, Depends(get_redis)],
 ) -> CustomerResponse:
-    """Creates a new customer. 409 on duplicate email (unique constraint)."""
+    """Creates a new customer. 409 on duplicate email. Adds to recent buffer."""
     try:
         created = await CustomerRepository.create(db, name=body.name, email=body.email)
     except IntegrityError as exc:
@@ -96,7 +100,27 @@ async def create_customer(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Email already exists: {body.email}",
         ) from exc
-    return CustomerResponse.model_validate(created)
+    dto = CustomerResponse.model_validate(created)
+    # Best-effort buffer add — Redis outage MUST NOT break the create flow.
+    # Log only ; the next POST or background re-sync will recover the buffer.
+    try:
+        await RecentCustomerBuffer(redis).add(dto)
+    except Exception as exc:
+        # TODO : structured log via structlog when middleware is wired
+        print(f"recent_buffer_add_failed id={dto.id} cause={exc}")
+    return dto
+
+
+@router.get("/recent", response_model=list[CustomerResponse])
+async def get_recent_customers(
+    redis: Annotated[Redis, Depends(get_redis)],
+) -> list[CustomerResponse]:
+    """Returns up to 10 most recently created customers from the Redis buffer.
+
+    No DB hit — populated on each POST /customers, survives pod restarts,
+    shared across replicas.
+    """
+    return await RecentCustomerBuffer(redis).get_recent()
 
 
 # ── Read by ID ────────────────────────────────────────────────────────────────
