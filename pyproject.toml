@@ -46,6 +46,10 @@ dependencies = [
     # Rate limiting — mirror of bucket4j
     "slowapi==0.1.9",
     "bcrypt==3.2.2",
+    # Resilience patterns (retry, backoff) — mirror of resilience4j retry
+    "tenacity==9.1.4",
+    # HTTP client for outbound calls to JSONPlaceholder, Ollama, etc.
+    "httpx==0.28.1",
 ]
 
 [project.optional-dependencies]

@@ -39,10 +39,11 @@ Stable checkpoint pending (no tag yet — needs first green main pipeline post-m
       `current_user`. DONE 2026-04-25 + 3 tests (401 missing, 200 valid,
       401 refresh-on-access).
 
-- [ ] **Add `/customers/{id}/bio`** + **/customers/{id}/todos** parity with the
-      Java side : Bio = Ollama LLM call (Resilience4j-equivalent retry via
-      `tenacity`), Todos = JSONPlaceholder external API (also tenacity +
-      fallback). Mirrors Java's `CustomerEnrichmentController` triplet.
+- [~] **Add `/customers/{id}/bio`** + **/customers/{id}/todos** parity with the
+      Java side. **/todos shipped 2026-04-25** (3 respx tests + tenacity
+      retry + graceful empty-list fallback on 5xx / network error).
+      **/bio still pending** — needs Ollama running locally (or a stub
+      mode flag). Defer until docker-compose includes ollama service.
 
 ### Higher value, more effort
 
