@@ -86,6 +86,12 @@ dev = [
     # via --benchmark-json for CI delta tracking. Run via :
     #   pytest tests/benchmarks --benchmark-only
     "pytest-benchmark>=5.1.0",
+    # Mutation testing — adds N variants of each function (e.g. swap < for >,
+    # invert booleans, replace literals with 0/1) and confirms tests catch
+    # them. Surviving mutants = tests have a hole. Heavy : 30-60 min on
+    # full suite, so we only target security-critical modules
+    # (auth/jwt + auth/passwords) via .mutmut.toml whitelist.
+    "mutmut>=3.5.0",
     # Container tests — mirror of Testcontainers
     "testcontainers[postgres,redis,kafka]==4.9.0",
 ]
@@ -102,6 +108,9 @@ build-backend = "uv_build"
 [tool.ruff]
 line-length = 120
 target-version = "py314"
+# Exclude generated / scratch dirs (mutmut creates ./mutants with mutated
+# source copies that would trigger thousands of false positives).
+extend-exclude = ["mutants", ".mutmut-cache"]
 
 [tool.ruff.lint]
 select = [
@@ -172,6 +181,26 @@ omit = ["*/migrations/*", "*/conftest.py"]
 # session.execute / session.flush — which makes router bodies (heavy
 # session usage) appear uncovered even though tests pass.
 concurrency = ["greenlet", "thread"]
+
+# Mutation testing — opt-in tooling for security-critical paths.
+# mutmut adds N variants of each function (swap < for >, invert booleans,
+# replace literals) and confirms tests catch them. Surviving mutants =
+# tests have a hole.
+#
+# Status (2026-04-25) : installed but NOT in CI yet. mutmut 3.x has a
+# known issue copying its src tree (walks parent filesystem, hits
+# unreadable files like /.VolumeIcon.icns on macOS). Tracking upstream :
+#   https://github.com/boxed/mutmut/issues
+# Once the upstream fix lands, wire a manual GitLab CI job that runs
+# `uv run mutmut run` against auth/jwt + auth/passwords (target : crypto
+# only ; full-suite mutmut is 30-60 min, targeted is 2-5 min).
+#
+# Manual run today : copy auth/jwt.py + auth/passwords.py to a tmp dir,
+# edit `paths_to_mutate` here, then `uv run mutmut run`. Document any
+# surviving mutant as a test-gap ticket in TASKS.md.
+[tool.mutmut]
+paths_to_mutate = "src/mirador_service/auth"
+tests_dir = "tests/unit/auth"
 
 [tool.coverage.report]
 exclude_lines = [
