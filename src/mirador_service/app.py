@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from mirador_service import __version__
+from mirador_service.auth.router import router as auth_router
 from mirador_service.config.settings import get_settings
 from mirador_service.customer.router import router as customer_router
 from mirador_service.db.base import reset_engine
@@ -50,6 +51,7 @@ def create_app() -> FastAPI:
     )
 
     # TODO : register CORS, request-id, logging, rate-limit middleware
+    app.include_router(auth_router)
     app.include_router(customer_router)
 
     @app.get("/", include_in_schema=False)

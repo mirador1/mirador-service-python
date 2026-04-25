@@ -45,6 +45,7 @@ dependencies = [
     "structlog==24.4.0",
     # Rate limiting — mirror of bucket4j
     "slowapi==0.1.9",
+    "bcrypt==3.2.2",
 ]
 
 [project.optional-dependencies]
@@ -137,4 +138,6 @@ exclude_lines = [
 [dependency-groups]
 dev = [
     "aiosqlite==0.20.0",
+    "types-passlib>=1.7.7.20260211",
+    "types-python-jose>=3.5.0.20260408",
 ]
