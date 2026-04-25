@@ -82,13 +82,15 @@ Stable checkpoint pending (no tag yet — needs first green main pipeline post-m
 
 ### Lower priority / nice-to-have
 
-- [ ] **ADR-0005** : Pydantic v2 settings hierarchy (env > .env > defaults)
-      — capture the `MIRADOR_DB__HOST` style with `__` nested delimiter +
-      `lru_cache` singleton choice.
+- [x] **ADR-0005** : Pydantic v2 settings hierarchy (env > .env > defaults)
+      DONE 2026-04-25 — captures the MIRADOR_DB__HOST style with `__`
+      nested delimiter + `lru_cache` singleton choice + fail-fast pattern.
 
-- [ ] **ADR-0006** : structlog over stdlib logging — capture the
-      ProcessorFormatter trick that routes uvicorn / sqlalchemy / aiokafka
-      logs through structlog so EVERY log line is JSON in prod.
+- [x] **ADR-0006** : structlog over stdlib logging
+      DONE 2026-04-25 — captures the ProcessorFormatter trick that routes
+      uvicorn / sqlalchemy / aiokafka logs through structlog's processor
+      chain so EVERY log line is JSON in prod, AND the contextvars-based
+      request_id auto-binding from RequestIdMiddleware.
 
 - [ ] **README.fr.md** — French localised README (mirror UI repo pattern).
 
