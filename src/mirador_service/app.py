@@ -22,6 +22,7 @@ from mirador_service.customer.router import router as customer_router
 from mirador_service.db.base import reset_engine
 from mirador_service.integration.redis_client import close_redis
 from mirador_service.messaging.kafka_client import start_kafka, stop_kafka
+from mirador_service.observability.otel import init_otel, shutdown_otel
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Startup + shutdown hooks.
 
     Order matters :
-    1. OTel SDK init FIRST so subsequent setup is traced.
+    1. OTel SDK init FIRST so subsequent setup is traced (best-effort —
+       OTLP collector unreachable = warnings + traces dropped, app boots).
     2. DB pool open (lazy via get_engine() on first session request).
     3. Redis client open (lazy via get_redis() on first request).
     4. Kafka producer/consumer start (BEST-EFFORT — logs + skips on failure
@@ -40,7 +42,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     6. Reverse on shutdown.
     """
     settings = get_settings()
-    # TODO : init OTel SDK
+    try:
+        init_otel(settings, app)
+    except Exception as exc:
+        logger.warning("otel_init_failed reason=%s — telemetry disabled", exc)
     try:
         await start_kafka(settings.kafka)
     except Exception as exc:
@@ -50,6 +55,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await stop_kafka()
     await close_redis()
     await reset_engine()
+    shutdown_otel()
 
 
 def create_app() -> FastAPI:
