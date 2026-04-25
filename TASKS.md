@@ -7,21 +7,30 @@ here ; done items removed (use `git tag -l` for history).
 
 ## 🤔 À considérer (lower priority)
 
-- 🟢 **`/customers/{id}/bio`** : Ollama LLM call + tenacity retry, mirror
-  of Java side. Defer until docker-compose includes ollama service.
-
-- 🟢 **README.fr.md** — French localised README (mirror UI repo pattern).
-
-- 🟢 **Replace `python-jose`** with `pyjwt` — python-jose semi-abandoned
-  (last release 2022-12). pyjwt actively maintained ; migration
-  straightforward. ADR + PR.
-
-- 🟢 **Replace `passlib`** with `argon2-cffi` or `bcrypt ≥ 4.x` — passlib
-  semi-abandoned ; bcrypt 5.x compat issue forced 3.2.2 pin. argon2-cffi
-  is the modern recommendation.
-
 - 🟢 **Docker image size optimisation** : currently 412 MB. Tried alpine
   (would save ~130 MB) but pydantic_core's Rust binary is glibc-only.
   Revisit when uv ships musl wheels for all Rust-extension deps
   (pydantic_core, cryptography, bcrypt).
 
+- 🟢 **pytest-benchmark gate** (ADR-0007 §13 TODO) : add benchmarks for
+  hot paths (JWT verify, password hash, repository search) + JSON
+  output for CI delta tracking. Right-sized for portfolio demo : skip
+  for now, revisit if a real perf regression lands.
+
+- 🟢 **kafka_client integration coverage** : producer + consumer loops
+  are at 43% (the rest needs a real broker). Run via `pytest -m
+  integration` with testcontainers Kafka — already wired in
+  `.gitlab-ci/test.yml :: integration-tests`. Local dev rarely runs
+  this ; flip to required gate (`allow_failure: false`) after the
+  integration job has 5 consecutive green runs.
+
+- 🟢 **pip-audit / safety in CI** (ADR-0007 §9 TODO) : add a job that
+  scans pyproject.toml for dependencies with known CVEs. Already have
+  gitleaks (secrets) + renovate (updates) ; CVE scanning is the third
+  leg.
+
+- 🟢 **Replace dict-based Todo / OllamaResponse types with Pydantic
+  models** : currently aliased as `dict[str, Any]` for simplicity.
+  Migration is a single-line type change per call site. Defer until
+  consumers actually need typed field access (currently they just
+  return the dicts as-is to the wire).
