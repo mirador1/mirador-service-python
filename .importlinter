@@ -1,0 +1,89 @@
+; Architectural-boundary contracts — import-linter (mirror of Java side's
+; ArchUnit). Run via `uv run lint-imports` ; CI fails if any rule breaks.
+;
+; Reading guide :
+; - "forbidden" forces a hard edge : module A may NEVER import module B,
+;   regardless of layer ordering.
+; - "independence" forbids two modules from importing each other (no cycles).
+;
+; Per ADR-0007 §5 — emulates ArchUnit's @ArchTest discipline in Python.
+;
+; Layout note : routers live INSIDE their feature package
+; (customer/router.py, auth/router.py), so a strict "presentation → use-case
+; → adapter" layered contract would force overlapping descendants. Instead
+; we enforce the rules that actually matter for clean architecture :
+; (1) config is a leaf, (2) adapters don't reach into each other directly.
+
+[importlinter]
+root_package = mirador_service
+
+; ── Contract 1 : config is a sink, never a source ────────────────────────────
+;
+; Settings + env-var resolution must NEVER reach back into use-cases or
+; adapters. Otherwise we get the classic "settings depends on the thing it's
+; meant to configure" cycle (= test isolation pain + import-time side effects).
+
+[importlinter:contract:config-is-leaf]
+name = mirador_service.config imports nothing else from the project
+type = forbidden
+source_modules =
+    mirador_service.config
+forbidden_modules =
+    mirador_service.api
+    mirador_service.app
+    mirador_service.auth
+    mirador_service.customer
+    mirador_service.db
+    mirador_service.integration
+    mirador_service.messaging
+    mirador_service.middleware
+    mirador_service.observability
+
+; ── Contract 2 : DB adapter doesn't reach into Kafka adapter ─────────────────
+;
+; The Kafka client must not import the SQLAlchemy session factory directly,
+; and the DB layer must not import the Kafka producer. They communicate
+; only through the use-case orchestrators (customer/router.py wiring both).
+; Prevents the "DB transaction crosses Kafka publish" anti-pattern silently.
+
+[importlinter:contract:db-messaging-independence]
+name = db and messaging adapters stay independent (no direct coupling)
+type = independence
+modules =
+    mirador_service.db.base
+    mirador_service.messaging.kafka_client
+
+; ── Contract 3 : integration adapters don't import each other ────────────────
+;
+; bio_service (Ollama LLM), todo_service (JSONPlaceholder) and redis_client
+; are all outbound adapters with their own httpx pool / connection. They
+; should never depend on each other — composition happens at the router
+; layer (Depends(...) wiring).
+
+[importlinter:contract:integration-adapters-independence]
+name = Outbound integration adapters (bio, todo, redis) stay independent
+type = independence
+modules =
+    mirador_service.integration.bio_service
+    mirador_service.integration.todo_service
+    mirador_service.integration.redis_client
+
+; ── Contract 4 : observability is one-way (instrumentation, not consumption)
+;
+; OTel SDK + structlog setup are pure outbound : they instrument other code,
+; never the other way around. If a feature imports observability, it should
+; be via the standard `logging.getLogger(__name__)` pattern, NOT by reaching
+; into our otel.py / logging middleware setup.
+
+[importlinter:contract:observability-is-leaf]
+name = mirador_service.observability is a leaf (instrumentation only)
+type = forbidden
+source_modules =
+    mirador_service.observability
+forbidden_modules =
+    mirador_service.api
+    mirador_service.auth
+    mirador_service.customer
+    mirador_service.db
+    mirador_service.integration
+    mirador_service.messaging

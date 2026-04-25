@@ -27,6 +27,20 @@ unit-tests:
         path: coverage.xml
     expire_in: 30 days
 
+# Architectural-boundary contracts — mirror of Java's ArchUnit @ArchTest.
+# Independent from unit-tests : a failing contract means the codebase
+# violates clean-arch boundaries (e.g. config imports a use-case),
+# which is a different kind of regression than a failing unit test.
+import-linter:
+  <<: *uv-base
+  stage: validate
+  needs: []
+  script:
+    - uv run lint-imports --config .importlinter
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
 integration-tests:
   <<: *uv-base
   stage: test
