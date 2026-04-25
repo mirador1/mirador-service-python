@@ -17,6 +17,7 @@ include:
   - local: .gitlab-ci/test.yml
   - local: .gitlab-ci/quality.yml
   - local: .gitlab-ci/build.yml
+  - local: .gitlab-ci/deploy.yml
 
 workflow:
   # Mirror Java's allowlist pattern : only run pipeline when changes touch
@@ -50,6 +51,7 @@ stages:
   - validate
   - test
   - package
+  - deploy
   - compat
 
 variables:
