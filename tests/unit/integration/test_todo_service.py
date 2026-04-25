@@ -25,7 +25,11 @@ async def test_get_todos_returns_payload_on_200() -> None:
         finally:
             await service.aclose()
     assert len(result) == 2
-    assert result[0]["title"] == "delectus aut autem"
+    # Result items are now Pydantic Todo models (migrated 2026-04-25 from
+    # dict[str, Any]) — access via attribute, not subscript.
+    assert result[0].title == "delectus aut autem"
+    assert result[0].user_id == 1
+    assert result[1].completed is True
 
 
 @pytest.mark.asyncio

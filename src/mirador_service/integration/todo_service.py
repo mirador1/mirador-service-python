@@ -19,9 +19,10 @@ Resilience contract :
 from __future__ import annotations
 
 import logging
-from typing import Any, Final
+from typing import Final
 
 import httpx
+from pydantic import BaseModel, ConfigDict, Field
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -39,11 +40,26 @@ JSONPLACEHOLDER_BASE_URL: Final[str] = "https://jsonplaceholder.typicode.com"
 # Matches Java's Resilience4j retry config (2 retries + 5 s call timeout).
 PER_ATTEMPT_TIMEOUT_S: Final[float] = 5.0
 
-# JSONPlaceholder todo shape : { userId: int, id: int, title: str, completed: bool }.
-# Aliased so consumers read `list[Todo]` and the future migration to a real
-# typed schema (TypedDict / Pydantic model) is a single-line change.
-# PEP 695 `type` keyword.
-type Todo = dict[str, Any]
+
+class Todo(BaseModel):
+    """JSONPlaceholder todo DTO.
+
+    Wire shape : ``{ userId: int, id: int, title: str, completed: bool }``.
+    Migrated from the previous ``type Todo = dict[str, Any]`` alias on
+    2026-04-25 (ADR-0007 §"Migrate dict aliases" follow-up). Pydantic
+    validates the wire shape AND lets consumers do typed field access
+    (e.g. `todo.completed` vs `todo["completed"]`).
+    """
+
+    # populate_by_name=True : accept both wire camelCase (userId) and
+    # Python snake_case (user_id). extra="ignore" : JSONPlaceholder may
+    # add fields we don't model.
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
+    user_id: int = Field(validation_alias="userId", serialization_alias="userId")
+    id: int
+    title: str
+    completed: bool
 
 
 class TodoService:
@@ -81,8 +97,9 @@ class TodoService:
         url = f"{self._base_url}/users/{user_id}/todos"
         response = await self._client.get(url)
         response.raise_for_status()
-        result: list[Todo] = response.json()
-        return result
+        # Pydantic validates the wire shape ; malformed entries fail-fast
+        # (caught by the outer try/except in get_todos → empty list fallback).
+        return [Todo.model_validate(item) for item in response.json()]
 
     async def aclose(self) -> None:
         """Close the underlying HTTP client. Called from app.lifespan shutdown."""

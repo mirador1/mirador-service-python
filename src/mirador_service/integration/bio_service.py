@@ -20,9 +20,10 @@ Resilience contract :
 from __future__ import annotations
 
 import logging
-from typing import Any, Final
+from typing import Final
 
 import httpx
+from pydantic import BaseModel, ConfigDict
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
@@ -38,10 +39,22 @@ OLLAMA_MODEL: Final[str] = "llama3.2"
 # worst case. Final[float] flags this as a tunable knob, not a literal.
 PER_ATTEMPT_TIMEOUT_S: Final[float] = 30.0
 
-# Ollama /api/generate response body. Aliased so consumers read the type
-# name instead of the noisy form, and so a future migration to a typed
-# dataclass / TypedDict only touches one line. PEP 695 `type` keyword.
-type OllamaResponse = dict[str, Any]
+
+class OllamaResponse(BaseModel):
+    """Ollama /api/generate response body — typed shape replaces the
+    previous ``dict[str, Any]`` alias (migrated 2026-04-25 per ADR-0007
+    follow-up). Lets the BioService consumer access ``response.text``
+    directly with type narrowing.
+
+    extra="ignore" : Ollama adds many fields (model, total_duration,
+    load_duration, prompt_eval_count, eval_count, eval_duration, ...)
+    that we don't need ; ignoring keeps the model lean.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    response: str = ""
+    done: bool = False
 
 
 class BioService:
@@ -90,8 +103,8 @@ class BioService:
             },
         )
         response.raise_for_status()
-        body: OllamaResponse = response.json()
-        text = str(body.get("response", "")).strip()
+        body = OllamaResponse.model_validate(response.json())
+        text = body.response.strip()
         if not text:
             raise ValueError("Ollama returned empty response")
         return text

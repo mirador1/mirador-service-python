@@ -31,6 +31,28 @@ unit-tests:
 # the .uv-base anchor there + has cleaner stage/needs wiring. Don't
 # re-define it here.
 
+# Microbenchmarks — JMH equivalent (mirror Java side's perf gates).
+# Per ADR-0007 §13. Hot paths : JWT encode/decode + bcrypt hash/verify.
+# JSON output uploaded as artifact ; future job can compare across runs
+# for delta tracking. Manual on every MR ; main triggers automatically.
+benchmarks:
+  <<: *uv-base
+  stage: test
+  needs: []
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+      allow_failure: true
+  script:
+    - uv run pytest tests/benchmarks --benchmark-only -m benchmarks --benchmark-json=benchmark.json
+  artifacts:
+    when: always
+    paths:
+      - benchmark.json
+    expire_in: 90 days
+  allow_failure: true  # informational ; flip to false if regressions become a real risk
+
 integration-tests:
   <<: *uv-base
   stage: test

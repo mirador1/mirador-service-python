@@ -81,6 +81,11 @@ dev = [
     # CVE scanning — mirror of OWASP Dependency-Check (Java) + npm-audit (UI).
     # Per ADR-0007 §9. Wired in CI via .gitlab-ci/quality.yml :: pip-audit.
     "pip-audit>=2.7.3",
+    # Microbenchmarks — mirror of JMH (Java). Per ADR-0007 §13. Hot paths :
+    # JWT encode/decode, bcrypt hash/verify, repository search. JSON output
+    # via --benchmark-json for CI delta tracking. Run via :
+    #   pytest tests/benchmarks --benchmark-only
+    "pytest-benchmark>=5.1.0",
     # Container tests — mirror of Testcontainers
     "testcontainers[postgres,redis,kafka]==4.9.0",
 ]
@@ -146,11 +151,16 @@ ignore_missing_imports = true
 #    kafka_client _header + 503 path + stop_kafka idempotence.
 # `-m "not integration"` is the DEFAULT — keeps `pytest` fast (no Docker).
 # Run integration suite explicitly via : pytest -m integration
-addopts = "-ra --strict-markers -m 'not integration' --cov=mirador_service --cov-report=term-missing --cov-report=html --cov-report=xml --cov-fail-under=90"
+# Default `pytest` excludes : integration (need testcontainers) + benchmarks
+# (need pytest-benchmark + slow). Run via the dedicated CI jobs :
+#   pytest tests/integration -m integration
+#   pytest tests/benchmarks --benchmark-only -m benchmarks
+addopts = "-ra --strict-markers -m 'not integration and not benchmarks' --cov=mirador_service --cov-report=term-missing --cov-report=html --cov-report=xml --cov-fail-under=90"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [
     "integration: integration tests requiring external services",
+    "benchmarks: pytest-benchmark microbenchmarks of hot paths",
     "slow: tests that take > 1s",
 ]
 
