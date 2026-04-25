@@ -7,6 +7,7 @@ middleware (CORS, request ID, structured logging), and mounts routers.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -16,9 +17,13 @@ from mirador_service import __version__
 from mirador_service.api.actuator import router as actuator_router
 from mirador_service.auth.router import router as auth_router
 from mirador_service.config.settings import get_settings
+from mirador_service.customer.enrichment_router import router as enrichment_router
 from mirador_service.customer.router import router as customer_router
 from mirador_service.db.base import reset_engine
 from mirador_service.integration.redis_client import close_redis
+from mirador_service.messaging.kafka_client import start_kafka, stop_kafka
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -28,17 +33,23 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     Order matters :
     1. OTel SDK init FIRST so subsequent setup is traced.
     2. DB pool open (lazy via get_engine() on first session request).
-    3. Redis client open.
-    4. Kafka producer/consumer start.
+    3. Redis client open (lazy via get_redis() on first request).
+    4. Kafka producer/consumer start (BEST-EFFORT — logs + skips on failure
+       so the rest of the app still serves CRUD even if the broker is down).
     5. Yield → serve requests.
     6. Reverse on shutdown.
     """
-    # TODO : init OTel SDK + Redis client + Kafka producer/consumer
+    settings = get_settings()
+    # TODO : init OTel SDK
+    try:
+        await start_kafka(settings.kafka)
+    except Exception as exc:
+        logger.warning("kafka_start_failed reason=%s — /customers/{id}/enrich will return 503", exc)
     yield
     # Shutdown : close in reverse-startup order
+    await stop_kafka()
     await close_redis()
     await reset_engine()
-    # TODO : close Kafka
 
 
 def create_app() -> FastAPI:
@@ -57,6 +68,7 @@ def create_app() -> FastAPI:
     app.include_router(actuator_router)
     app.include_router(auth_router)
     app.include_router(customer_router)
+    app.include_router(enrichment_router)
 
     @app.get("/", include_in_schema=False)
     async def root() -> dict[str, str]:
