@@ -7,13 +7,26 @@ middleware (CORS, request ID, structured logging), and mounts routers.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
 from mirador_service import __version__
+from mirador_service.api.actuator import router as actuator_router
+from mirador_service.auth.router import router as auth_router
 from mirador_service.config.settings import get_settings
+from mirador_service.customer.enrichment_router import router as enrichment_router
+from mirador_service.customer.router import router as customer_router
+from mirador_service.db.base import reset_engine
+from mirador_service.integration.redis_client import close_redis
+from mirador_service.messaging.kafka_client import start_kafka, stop_kafka
+from mirador_service.middleware.logging import configure_logging
+from mirador_service.middleware.setup import register_middleware
+from mirador_service.observability.otel import init_otel, shutdown_otel
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -21,25 +34,40 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Startup + shutdown hooks.
 
     Order matters :
-    1. OTel SDK init FIRST so subsequent setup is traced.
-    2. DB pool open.
-    3. Redis client open.
-    4. Kafka producer/consumer start.
+    1. OTel SDK init FIRST so subsequent setup is traced (best-effort —
+       OTLP collector unreachable = warnings + traces dropped, app boots).
+    2. DB pool open (lazy via get_engine() on first session request).
+    3. Redis client open (lazy via get_redis() on first request).
+    4. Kafka producer/consumer start (BEST-EFFORT — logs + skips on failure
+       so the rest of the app still serves CRUD even if the broker is down).
     5. Yield → serve requests.
     6. Reverse on shutdown.
     """
-    # TODO : init OTel SDK
-    # TODO : open DB pool, Redis client, Kafka producer/consumer
+    settings = get_settings()
+    try:
+        init_otel(settings, app)
+    except Exception as exc:
+        logger.warning("otel_init_failed reason=%s — telemetry disabled", exc)
+    try:
+        await start_kafka(settings.kafka)
+    except Exception as exc:
+        logger.warning("kafka_start_failed reason=%s — /customers/{id}/enrich will return 503", exc)
     yield
-    # TODO : close in reverse order
+    # Shutdown : close in reverse-startup order
+    await stop_kafka()
+    await close_redis()
+    await reset_engine()
+    shutdown_otel()
 
 
 def create_app() -> FastAPI:
     """App factory — used by uvicorn (`mirador_service.app:app`) and tests."""
-    # settings is intentionally instantiated here (even if unused at this stage)
-    # to fail-fast if env config is broken at app construction time vs first
-    # request — same pattern as Spring's @PostConstruct on @Configuration beans.
-    get_settings()
+    # Fail-fast on broken env config at app construction time vs first request
+    # (same pattern as Spring's @PostConstruct on @Configuration beans).
+    settings = get_settings()
+    # Wire structlog FIRST so subsequent setup logs use the configured format.
+    configure_logging(dev_mode=settings.dev_mode)
+
     app = FastAPI(
         title="Mirador Customer Service (Python)",
         version=__version__,
@@ -47,8 +75,12 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # TODO : register CORS, request-id, logging, rate-limit middleware
-    # TODO : mount routers (auth, customer, actuator)
+    register_middleware(app, settings)
+
+    app.include_router(actuator_router)
+    app.include_router(auth_router)
+    app.include_router(customer_router)
+    app.include_router(enrichment_router)
 
     @app.get("/", include_in_schema=False)
     async def root() -> dict[str, str]:
