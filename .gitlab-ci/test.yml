@@ -1,7 +1,7 @@
 # Test stage : pytest unit + integration (testcontainers)
 
 .uv-base: &uv-base
-  image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+  image: ghcr.io/astral-sh/uv:python3.14-bookworm-slim
   tags:
     - macbook-local
   before_script:
@@ -90,14 +90,14 @@ integration-tests:
   script:
     - uv run pytest tests/unit -v
 
-compat-py311:
-  <<: *compat-base
-  image: ghcr.io/astral-sh/uv:python3.11-bookworm-slim
+# Compat matrix : 3.14 = default (in unit-tests + integration-tests above) ;
+# 3.12 + 3.13 = informational fallbacks. 3.11 dropped 2026-04-25 (less than
+# 18 months before EOL = 2027-10) — not worth maintaining.
 
 compat-py312:
   <<: *compat-base
   image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
-compat-py314:
+compat-py313:
   <<: *compat-base
-  image: ghcr.io/astral-sh/uv:python3.14-bookworm-slim
+  image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim

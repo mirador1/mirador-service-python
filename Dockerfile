@@ -3,7 +3,7 @@
 # Mirrors mirador-service Java's `build-jar` + `Dockerfile` 2-stage pattern.
 
 # ── Stage 1 : Build (with uv) ────────────────────────────────────────────────
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
+FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -32,7 +32,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # builder), which defeats the multi-stage caching benefit. Sticking with
 # slim-bookworm for now ; revisit when uv ships musl wheels for all our
 # Rust-extension deps (pydantic_core, cryptography, bcrypt).
-FROM python:3.13-slim-bookworm AS runtime
+FROM python:3.14-slim-bookworm AS runtime
 
 # Non-root user (Dockle CIS-DI-0001 + matches Java mirror's spring user)
 RUN groupadd --system --gid 1001 mirador \

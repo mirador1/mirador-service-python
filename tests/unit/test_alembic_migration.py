@@ -18,10 +18,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from alembic.config import Config
 from sqlalchemy import create_engine, inspect
 
 from alembic import command
-from alembic.config import Config
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
