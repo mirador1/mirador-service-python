@@ -128,12 +128,16 @@ module = ["aiokafka", "aiokafka.*", "testcontainers.*", "apscheduler.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-# cov-fail-under=80 — Étape 9 batch lifted baseline 65 → 80 :
-#  - greenlet+thread coverage hooks fix FastAPI router undercounting (+6 pts).
-#  - 16 new tests across auth deps + repository edge cases + alembic + otel.
+# cov-fail-under=90 — ADR-0007 §3 industrial Python posture :
+#  - 65 → 80 (Étape 9) : greenlet+thread hooks + 16 new tests.
+#  - 80 → 90 (ADR-0007) : property-based tests via hypothesis +
+#    targeted coverage uplift on passwords malformed, redis_client lifecycle,
+#    cleanup scheduler, customer_event publish error paths, customer/router
+#    PUT/PATCH/DELETE 4xx branches, enrichment_router factories,
+#    kafka_client _header + 503 path + stop_kafka idempotence.
 # `-m "not integration"` is the DEFAULT — keeps `pytest` fast (no Docker).
 # Run integration suite explicitly via : pytest -m integration
-addopts = "-ra --strict-markers -m 'not integration' --cov=mirador_service --cov-report=term-missing --cov-report=html --cov-report=xml --cov-fail-under=80"
+addopts = "-ra --strict-markers -m 'not integration' --cov=mirador_service --cov-report=term-missing --cov-report=html --cov-report=xml --cov-fail-under=90"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [
