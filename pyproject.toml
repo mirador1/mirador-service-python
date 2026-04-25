@@ -25,8 +25,6 @@ dependencies = [
     "asyncpg==0.30.0",
     "alembic==1.14.0",
     # Auth + JWT — mirror of Spring Security + jjwt
-    "python-jose[cryptography]==3.3.0",
-    "passlib[bcrypt]==1.7.4",
     # Kafka — mirror of Spring Kafka
     "aiokafka==0.12.0",
     # Redis — mirror of Spring Data Redis
@@ -45,12 +43,13 @@ dependencies = [
     "structlog==24.4.0",
     # Rate limiting — mirror of bucket4j
     "slowapi==0.1.9",
-    "bcrypt==3.2.2",
     # Resilience patterns (retry, backoff) — mirror of resilience4j retry
     "tenacity==9.1.4",
     # HTTP client for outbound calls to JSONPlaceholder, Ollama, etc.
     "httpx==0.28.1",
     "apscheduler>=3.11.2",
+    "pyjwt>=2.12.1",
+    "bcrypt>=4.0",
 ]
 
 [project.optional-dependencies]
@@ -163,6 +162,4 @@ dev = [
     "mkdocs-material>=9.7.6",
     "mkdocstrings[python]>=1.0.4",
     "ruff>=0.8.4",
-    "types-passlib>=1.7.7.20260211",
-    "types-python-jose>=3.5.0.20260408",
 ]

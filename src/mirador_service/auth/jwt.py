@@ -1,4 +1,10 @@
-"""JWT issuance + verification — python-jose wrapper.
+"""JWT issuance + verification — pyjwt wrapper.
+
+Migrated 2026-04-25 from python-jose (semi-abandoned, last release 2022-12)
+to pyjwt (actively maintained by Jose Padilla et al.). API is similar :
+``jwt.encode(payload, key, algorithm=...)`` + ``jwt.decode(token, key,
+algorithms=[...])``. Exception class renamed JWTError → InvalidTokenError ;
+ExpiredSignatureError stays.
 
 Mirrors Java's JwtTokenProvider. Two token types :
 - Access token : short-lived (15 min default), bearer in Authorization header
@@ -19,8 +25,8 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from jose import JWTError, jwt
-from jose.exceptions import ExpiredSignatureError
+import jwt
+from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 
 from mirador_service.config.settings import JwtSettings
 
@@ -62,7 +68,7 @@ def decode_token(settings: JwtSettings, token: str, expected_type: str) -> dict[
         )
     except ExpiredSignatureError as exc:
         raise JwtError("Token expired") from exc
-    except JWTError as exc:
+    except InvalidTokenError as exc:
         raise JwtError(f"Invalid token: {exc}") from exc
 
     if claims.get("type") != expected_type:
