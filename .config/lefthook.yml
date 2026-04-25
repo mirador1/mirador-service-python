@@ -21,11 +21,14 @@
 commit-msg:
   commands:
     conventional-commits:
+      # {1} is the lefthook placeholder for the commit-msg file path
+      # (= .git/COMMIT_EDITMSG). $1 doesn't work because lefthook runs
+      # the script via sh -c without forwarding positional args.
       run: |
         # head -n1 strips trailing newline ; tr removes any stray \r ; the
         # printf-piped echo avoids shell interpretation of subject content
         # (e.g. messages containing `*` or `!` that grep -E would balk at).
-        msg=$(head -n1 "$1" | tr -d '\r')
+        msg=$(head -n1 {1} | tr -d '\r')
         # Bash regex match (=~) avoids the grep subprocess + handles special
         # chars in the subject without quoting hell.
         regex='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-zA-Z0-9._/-]+\))?!?: .{1,72}$'
