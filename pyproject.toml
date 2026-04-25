@@ -14,7 +14,11 @@ keywords = ["fastapi", "demo", "observability", "kafka", "redis", "opentelemetry
 # `pin every upstream reference` rule (no floating versions).
 dependencies = [
     # Web framework — mirror of Spring Boot Web MVC
-    "fastapi==0.115.5",
+    "fastapi==0.136.1",  # bumped 2026-04-25 — pulls starlette>=0.46.0
+    # Explicit starlette pin > 0.49.1 to dodge CVE-2025-54121 + CVE-2025-62727
+    # (both tickets surfaced by pip-audit in CI ; fastapi's lower bound 0.46.0
+    # would otherwise leave us on a vulnerable starlette).
+    "starlette>=0.49.1",
     "uvicorn[standard]==0.34.0",
     "gunicorn==23.0.0",
     # DTO + validation — mirror of Jackson + Bean Validation
@@ -55,8 +59,10 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     # Test framework — mirror of JUnit 5 + Mockito
-    "pytest==8.3.4",
-    "pytest-asyncio==0.25.2",
+    # Bumped 2026-04-25 to 9.0.3 — fixes CVE-2025-71176 (TOCTOU race in
+    # tmp_path fixture). pip-audit caught it.
+    "pytest==9.0.3",
+    "pytest-asyncio==1.3.0",  # bumped 2026-04-25 — 0.25 capped pytest at <9 (blocked CVE fix)
     "pytest-cov==6.0.0",
     "pytest-mock==3.14.0",
     "httpx==0.28.1",
@@ -72,6 +78,20 @@ dev = [
     "mypy>=1.18",
     # Architecture tests — mirror of ArchUnit
     "import-linter==2.0",
+    # CVE scanning — mirror of OWASP Dependency-Check (Java) + npm-audit (UI).
+    # Per ADR-0007 §9. Wired in CI via .gitlab-ci/quality.yml :: pip-audit.
+    "pip-audit>=2.7.3",
+    # Microbenchmarks — mirror of JMH (Java). Per ADR-0007 §13. Hot paths :
+    # JWT encode/decode, bcrypt hash/verify, repository search. JSON output
+    # via --benchmark-json for CI delta tracking. Run via :
+    #   pytest tests/benchmarks --benchmark-only
+    "pytest-benchmark>=5.1.0",
+    # Mutation testing — adds N variants of each function (e.g. swap < for >,
+    # invert booleans, replace literals with 0/1) and confirms tests catch
+    # them. Surviving mutants = tests have a hole. Heavy : 30-60 min on
+    # full suite, so we only target security-critical modules
+    # (auth/jwt + auth/passwords) via .mutmut.toml whitelist.
+    "mutmut>=3.5.0",
     # Container tests — mirror of Testcontainers
     "testcontainers[postgres,redis,kafka]==4.9.0",
 ]
@@ -88,6 +108,9 @@ build-backend = "uv_build"
 [tool.ruff]
 line-length = 120
 target-version = "py314"
+# Exclude generated / scratch dirs (mutmut creates ./mutants with mutated
+# source copies that would trigger thousands of false positives).
+extend-exclude = ["mutants", ".mutmut-cache"]
 
 [tool.ruff.lint]
 select = [
@@ -137,11 +160,16 @@ ignore_missing_imports = true
 #    kafka_client _header + 503 path + stop_kafka idempotence.
 # `-m "not integration"` is the DEFAULT — keeps `pytest` fast (no Docker).
 # Run integration suite explicitly via : pytest -m integration
-addopts = "-ra --strict-markers -m 'not integration' --cov=mirador_service --cov-report=term-missing --cov-report=html --cov-report=xml --cov-fail-under=90"
+# Default `pytest` excludes : integration (need testcontainers) + benchmarks
+# (need pytest-benchmark + slow). Run via the dedicated CI jobs :
+#   pytest tests/integration -m integration
+#   pytest tests/benchmarks --benchmark-only -m benchmarks
+addopts = "-ra --strict-markers -m 'not integration and not benchmarks' --cov=mirador_service --cov-report=term-missing --cov-report=html --cov-report=xml --cov-fail-under=90"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [
     "integration: integration tests requiring external services",
+    "benchmarks: pytest-benchmark microbenchmarks of hot paths",
     "slow: tests that take > 1s",
 ]
 
@@ -153,6 +181,26 @@ omit = ["*/migrations/*", "*/conftest.py"]
 # session.execute / session.flush — which makes router bodies (heavy
 # session usage) appear uncovered even though tests pass.
 concurrency = ["greenlet", "thread"]
+
+# Mutation testing — opt-in tooling for security-critical paths.
+# mutmut adds N variants of each function (swap < for >, invert booleans,
+# replace literals) and confirms tests catch them. Surviving mutants =
+# tests have a hole.
+#
+# Status (2026-04-25) : installed but NOT in CI yet. mutmut 3.x has a
+# known issue copying its src tree (walks parent filesystem, hits
+# unreadable files like /.VolumeIcon.icns on macOS). Tracking upstream :
+#   https://github.com/boxed/mutmut/issues
+# Once the upstream fix lands, wire a manual GitLab CI job that runs
+# `uv run mutmut run` against auth/jwt + auth/passwords (target : crypto
+# only ; full-suite mutmut is 30-60 min, targeted is 2-5 min).
+#
+# Manual run today : copy auth/jwt.py + auth/passwords.py to a tmp dir,
+# edit `paths_to_mutate` here, then `uv run mutmut run`. Document any
+# surviving mutant as a test-gap ticket in TASKS.md.
+[tool.mutmut]
+paths_to_mutate = "src/mirador_service/auth"
+tests_dir = "tests/unit/auth"
 
 [tool.coverage.report]
 exclude_lines = [

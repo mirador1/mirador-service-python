@@ -5,32 +5,35 @@ here ; done items removed (use `git tag -l` for history).
 
 ---
 
+## 🚫 Blocked (waiting on upstream)
+
+- 🟢 **Wire mutmut in CI** : mutmut 3.5.0 installed + configured
+  (`[tool.mutmut]` targeting `src/mirador_service/auth/`), but mutmut
+  walks parent filesystem on `run` and hits unreadable
+  `/.VolumeIcon.icns` on macOS. Track [boxed/mutmut issues](https://github.com/boxed/mutmut/issues).
+  When fixed : add a manual GitLab CI job `mutmut` at validate stage,
+  run on-demand for crypto-touching MRs.
+
+- 🟢 **Docker image alpine** : 412 MB → ~280 MB possible. Blocked :
+  pydantic_core / cryptography / bcrypt have no musl wheels. Revisit
+  when uv ships musl wheels for Rust-extension deps.
+
 ## 🤔 À considérer (lower priority)
 
-- 🟢 **Docker image size optimisation** : currently 412 MB. Tried alpine
-  (would save ~130 MB) but pydantic_core's Rust binary is glibc-only.
-  Revisit when uv ships musl wheels for all Rust-extension deps
-  (pydantic_core, cryptography, bcrypt).
+- 🟢 **Flip integration-tests CI job to required** (`allow_failure:
+  false`) : currently informational. Acceptance criterion : 5 consecutive
+  green runs of `integration-tests` on main. The new
+  `test_kafka_client_lifecycle.py` is the reference — once stable, gate.
 
-- 🟢 **pytest-benchmark gate** (ADR-0007 §13 TODO) : add benchmarks for
-  hot paths (JWT verify, password hash, repository search) + JSON
-  output for CI delta tracking. Right-sized for portfolio demo : skip
-  for now, revisit if a real perf regression lands.
+- 🟢 **Flip pip-audit CVE gate to enforcing** : currently set as hard
+  gate (no allow_failure) but only ignores `CVE-2026-3219` (pip
+  bundled, no fix yet). Re-check monthly. Remove the `--ignore-vuln`
+  flag once pip ships the patched version.
 
-- 🟢 **kafka_client integration coverage** : producer + consumer loops
-  are at 43% (the rest needs a real broker). Run via `pytest -m
-  integration` with testcontainers Kafka — already wired in
-  `.gitlab-ci/test.yml :: integration-tests`. Local dev rarely runs
-  this ; flip to required gate (`allow_failure: false`) after the
-  integration job has 5 consecutive green runs.
+- 🟢 **Flip sonarcloud to required** (`allow_failure: false` →
+  remove the line) : after first 5 green runs (TODO date 2026-05-25
+  in `.gitlab-ci/quality.yml`).
 
-- 🟢 **pip-audit / safety in CI** (ADR-0007 §9 TODO) : add a job that
-  scans pyproject.toml for dependencies with known CVEs. Already have
-  gitleaks (secrets) + renovate (updates) ; CVE scanning is the third
-  leg.
-
-- 🟢 **Replace dict-based Todo / OllamaResponse types with Pydantic
-  models** : currently aliased as `dict[str, Any]` for simplicity.
-  Migration is a single-line type change per call site. Defer until
-  consumers actually need typed field access (currently they just
-  return the dicts as-is to the wire).
+- 🟢 **Migrate Java's `jvm.config` Comments rule to Python's
+  `pytest.ini_options`** : adopt the same dated-TODO comment pattern
+  for `allow_failure` shields once we have any.

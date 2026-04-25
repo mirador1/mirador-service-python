@@ -1,0 +1,108 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":semanticCommitTypeAll(chore)",
+    ":separateMajorReleases",
+    ":prImmediately",
+    ":enableVulnerabilityAlertsWithLabel(security)",
+    "schedule:weekends"
+  ],
+  "timezone": "Europe/Paris",
+  "description": [
+    "Mirador-service-python — automated Python dependency updates.",
+    "Same posture as the Java mirror (infra/shared/renovate.json) :",
+    "minor/patch auto-merge after CI green ; majors require human review.",
+    "Python-specific grouping for FastAPI / SQLAlchemy / Pydantic / OTel families."
+  ],
+  "labels": ["dependencies", "renovate"],
+  "platformAutomerge": true,
+  "rebaseWhen": "conflicted",
+  "prHourlyLimit": 4,
+  "prConcurrentLimit": 10,
+  "packageRules": [
+    {
+      "description": "Auto-merge patch + minor updates after CI green. Majors need human review.",
+      "matchUpdateTypes": ["patch", "pin", "digest"],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true
+    },
+    {
+      "description": "Group FastAPI + Starlette + Pydantic + Uvicorn — they're often released together with overlapping compat constraints.",
+      "groupName": "FastAPI / Pydantic stack",
+      "matchPackageNames": [
+        "fastapi",
+        "starlette",
+        "pydantic",
+        "pydantic-core",
+        "pydantic-settings",
+        "uvicorn",
+        "starlette-prometheus"
+      ]
+    },
+    {
+      "description": "Group SQLAlchemy + asyncpg + alembic — DB stack must match.",
+      "groupName": "SQLAlchemy / asyncpg / Alembic",
+      "matchPackageNames": [
+        "sqlalchemy",
+        "asyncpg",
+        "alembic"
+      ]
+    },
+    {
+      "description": "Group OpenTelemetry SDK + instrumentations — version drift causes runtime errors.",
+      "groupName": "OpenTelemetry",
+      "matchPackageNames": [
+        "/^opentelemetry-/",
+        "prometheus-client"
+      ]
+    },
+    {
+      "description": "Group ruff + mypy + import-linter — quality tooling, treat as a unit.",
+      "groupName": "Lint + type tooling",
+      "matchPackageNames": [
+        "ruff",
+        "mypy",
+        "import-linter"
+      ]
+    },
+    {
+      "description": "Group pytest + pytest-* plugins.",
+      "groupName": "pytest",
+      "matchPackageNames": [
+        "pytest",
+        "/^pytest-/"
+      ]
+    },
+    {
+      "description": "Docker base images — pin by digest for reproducibility, but still upgrade.",
+      "matchDatasources": ["docker"],
+      "pinDigests": true
+    },
+    {
+      "description": "Keep Python on the latest stable. Major bumps (3.14 → 3.15 in Oct 2026) require human review.",
+      "matchPackageNames": [
+        "python",
+        "ghcr.io/astral-sh/uv"
+      ],
+      "matchUpdateTypes": ["major"],
+      "labels": ["major-upgrade", "manual-review"],
+      "automerge": false
+    }
+  ],
+  "gitlabci": {
+    "description": "Keep .gitlab-ci/*.yml image tags current (e.g. ghcr.io/astral-sh/uv:python3.X-bookworm-slim)."
+  },
+  "vulnerabilityAlerts": {
+    "labels": ["security", "priority-high"],
+    "automerge": false,
+    "schedule": ["at any time"]
+  },
+  "lockFileMaintenance": {
+    "description": "Refresh uv.lock weekly to pull in transitive dep patches.",
+    "enabled": true,
+    "schedule": ["before 5am on monday"]
+  }
+}
