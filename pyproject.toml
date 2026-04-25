@@ -120,10 +120,13 @@ module = ["aiokafka", "aiokafka.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-# cov-fail-under=65 temporary — db/base.py lifespan + kafka_client consumer
-# loops need integration tests (Postgres + Kafka testcontainers). Will raise
-# to 80 once integration tests land in Étape 9.
-addopts = "-ra --strict-markers --cov=mirador_service --cov-report=term-missing --cov-report=html --cov-report=xml --cov-fail-under=65"
+# cov-fail-under=80 — Étape 9 batch lifted baseline 65 → 80 :
+#  - greenlet+thread coverage hooks fix FastAPI router undercounting (+6 pts).
+#  - 16 new tests across auth deps + repository edge cases + alembic + otel.
+# Remaining gap : kafka_client consumer-loop boilerplate (24%) and
+# observability/otel.py beta-instrumentation (44%) — both genuinely need
+# integration containers (testcontainers Kafka + LGTM) covered in Étape 10.
+addopts = "-ra --strict-markers --cov=mirador_service --cov-report=term-missing --cov-report=html --cov-report=xml --cov-fail-under=80"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [
@@ -134,6 +137,11 @@ markers = [
 [tool.coverage.run]
 source = ["src"]
 omit = ["*/migrations/*", "*/conftest.py"]
+# greenlet : SQLAlchemy async uses greenlets internally to bridge async ↔
+# sync. Without this hook coverage misses every line invoked via
+# session.execute / session.flush — which makes router bodies (heavy
+# session usage) appear uncovered even though tests pass.
+concurrency = ["greenlet", "thread"]
 
 [tool.coverage.report]
 exclude_lines = [
