@@ -1,0 +1,27 @@
+# Mirrors .gitignore minus what Docker needs (= src + pyproject + uv.lock).
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.git/
+.gitignore
+.gitlab-ci/
+.gitlab-ci.yml
+.github/
+.idea/
+.vscode/
+.DS_Store
+docs/
+tests/
+alembic/
+infra/
+bin/
+*.md
+*.log
+.env
+.env.example
+docker-compose*.yml

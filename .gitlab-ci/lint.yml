@@ -1,0 +1,36 @@
+# Lint stage : ruff + mypy + import-linter (= Java's checkstyle + spotbugs + ArchUnit)
+
+.uv-base: &uv-base
+  image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+  tags:
+    - macbook-local
+  before_script:
+    - uv sync --all-extras --frozen
+  cache:
+    key:
+      files:
+        - uv.lock
+    paths:
+      - .venv/
+
+ruff:lint:
+  <<: *uv-base
+  stage: validate
+  script:
+    - uv run ruff check src tests
+    - uv run ruff format --check src tests
+
+mypy:
+  <<: *uv-base
+  stage: validate
+  script:
+    - uv run mypy src
+
+import-linter:
+  <<: *uv-base
+  stage: validate
+  rules:
+    - exists:
+        - .importlinter
+  script:
+    - uv run lint-imports

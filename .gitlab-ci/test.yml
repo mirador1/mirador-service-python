@@ -1,0 +1,76 @@
+# Test stage : pytest unit + integration (testcontainers)
+
+.uv-base: &uv-base
+  image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+  tags:
+    - macbook-local
+  before_script:
+    - uv sync --all-extras --frozen
+  cache:
+    key:
+      files:
+        - uv.lock
+    paths:
+      - .venv/
+
+unit-tests:
+  <<: *uv-base
+  stage: test
+  script:
+    - uv run pytest tests/unit -v --junitxml=junit-unit.xml --cov=mirador_service --cov-report=xml
+  artifacts:
+    when: always
+    reports:
+      junit: junit-unit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    expire_in: 30 days
+
+integration-tests:
+  <<: *uv-base
+  stage: test
+  needs:
+    - unit-tests
+  rules:
+    # Integration tests need testcontainers (Docker socket) — only on macbook-local
+    # which has Docker. SaaS shared runners don't.
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - uv run pytest tests/integration -v -m integration --junitxml=junit-integration.xml
+  artifacts:
+    when: always
+    reports:
+      junit: junit-integration.xml
+    expire_in: 30 days
+  allow_failure: true  # TODO 2026-05-25 — flip after 5 consecutive green runs
+
+# Compat matrix : same tests on different Python versions
+.compat-base: &compat-base
+  stage: compat
+  tags:
+    - macbook-local
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
+    - if: $RUN_COMPAT == "true"
+      when: on_success
+    - when: manual
+  allow_failure: true
+  before_script:
+    - uv sync --all-extras --frozen
+  script:
+    - uv run pytest tests/unit -v
+
+compat-py311:
+  <<: *compat-base
+  image: ghcr.io/astral-sh/uv:python3.11-bookworm-slim
+
+compat-py312:
+  <<: *compat-base
+  image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+
+compat-py314:
+  <<: *compat-base
+  image: ghcr.io/astral-sh/uv:python3.14-bookworm-slim

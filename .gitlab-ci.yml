@@ -1,0 +1,58 @@
+# Mirror of mirador-service Java pipeline (modular structure under .gitlab-ci/).
+# Lanes :
+# ┌─ REGULAR (every MR + main push) ─────────────────────────────────────────┐
+# │   lint        ruff + mypy                                                │
+# │   test        pytest unit (mocked)                                       │
+# │   integration pytest -m integration (testcontainers postgres/redis/kafka)│
+# │   package     docker build (multi-stage, multi-arch)                     │
+# └──────────────────────────────────────────────────────────────────────────┘
+#
+# ┌─ MANUAL : compat matrix ────────────────────────────────────────────────┐
+# │   compat-py311 / compat-py312 / compat-py314 — same tests on different  │
+# │   Python versions (informational, defines compat support claim)         │
+# └─────────────────────────────────────────────────────────────────────────┘
+
+include:
+  - local: .gitlab-ci/lint.yml
+  - local: .gitlab-ci/test.yml
+  - local: .gitlab-ci/build.yml
+
+workflow:
+  # Mirror Java's allowlist pattern : only run pipeline when changes touch
+  # a code/build/infra/CI/doc path. Avoids burning runner quota on doc-only
+  # MRs that don't need a full pipeline (but still must satisfy branch
+  # protection's "ci_must_pass" rule via a mostly-skipped pipeline).
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - "src/**/*"
+        - "tests/**/*"
+        - "alembic/**/*"
+        - "pyproject.toml"
+        - "uv.lock"
+        - "Dockerfile*"
+        - ".dockerignore"
+        - "docker-compose*.yml"
+        - ".gitlab-ci.yml"
+        - ".gitlab-ci/**/*"
+        - "infra/**/*"
+        - "bin/**/*"
+        - "docs/**/*"
+        - "README.md"
+        - "CLAUDE.md"
+        - "TASKS.md"
+        - ".env.example"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE != "schedule"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+stages:
+  - validate
+  - test
+  - package
+  - compat
+
+variables:
+  PYTHON_VERSION: "3.13"
+  UV_VERSION: "0.11.2"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONUNBUFFERED: "1"

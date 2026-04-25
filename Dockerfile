@@ -1,0 +1,59 @@
+# syntax=docker/dockerfile:1.7
+# Multi-stage build : (1) build venv with uv, (2) thin runtime image.
+# Mirrors mirador-service Java's `build-jar` + `Dockerfile` 2-stage pattern.
+
+# ── Stage 1 : Build (with uv) ────────────────────────────────────────────────
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
+
+WORKDIR /app
+
+# Copy dependency files first for layer caching
+COPY pyproject.toml uv.lock* ./
+
+# Install dependencies into .venv ; --frozen mirrors `mvn ci`-style deterministic
+# builds (fails if uv.lock missing / out of date).
+ENV UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-install-project --no-dev
+
+# Copy app source AFTER deps are installed (better layer caching)
+COPY src/ ./src/
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev
+
+# ── Stage 2 : Runtime (slim, no uv) ─────────────────────────────────────────
+FROM python:3.13-slim-bookworm AS runtime
+
+# Non-root user (Dockle CIS-DI-0001 + matches Java mirror's spring user)
+RUN groupadd --system --gid 1001 mirador \
+ && useradd  --system --uid 1001 --gid mirador --shell /usr/sbin/nologin mirador
+
+WORKDIR /app
+
+# Copy venv from builder + app source
+COPY --from=builder --chown=mirador:mirador /app/.venv /app/.venv
+COPY --from=builder --chown=mirador:mirador /app/src /app/src
+
+# PATH the venv binaries
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# Health probe baked-in for k8s liveness/readiness
+HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/actuator/health/liveness').read()" || exit 1
+
+USER mirador
+
+EXPOSE 8080
+
+# Production : gunicorn with uvicorn workers (= Spring Boot's embedded Tomcat)
+# Worker count tuned to (2 * CPU + 1) but capped at 4 for the demo.
+CMD ["gunicorn", \
+     "--bind=0.0.0.0:8080", \
+     "--workers=4", \
+     "--worker-class=uvicorn.workers.UvicornWorker", \
+     "--access-logfile=-", \
+     "--error-logfile=-", \
+     "mirador_service.app:app"]

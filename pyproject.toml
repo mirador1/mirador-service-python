@@ -1,0 +1,133 @@
+[project]
+name = "mirador-service"
+version = "0.1.0"
+description = "Mirador customer service — Python mirror of mirador-service Java (FastAPI + Pydantic v2 + SQLAlchemy 2.x async)"
+readme = "README.md"
+authors = [
+    { name = "Benoît Besson", email = "benoit.besson@gmail.com" }
+]
+requires-python = ">=3.13"
+license = { text = "MIT" }
+keywords = ["fastapi", "demo", "observability", "kafka", "redis", "opentelemetry"]
+
+# Runtime dependencies — pinned exactly to mirror Java project's
+# `pin every upstream reference` rule (no floating versions).
+dependencies = [
+    # Web framework — mirror of Spring Boot Web MVC
+    "fastapi==0.115.5",
+    "uvicorn[standard]==0.34.0",
+    "gunicorn==23.0.0",
+    # DTO + validation — mirror of Jackson + Bean Validation
+    "pydantic==2.10.4",
+    "pydantic-settings==2.7.0",
+    # ORM + migrations — mirror of Spring Data JPA + Flyway
+    "sqlalchemy[asyncio]==2.0.36",
+    "asyncpg==0.30.0",
+    "alembic==1.14.0",
+    # Auth + JWT — mirror of Spring Security + jjwt
+    "python-jose[cryptography]==3.3.0",
+    "passlib[bcrypt]==1.7.4",
+    # Kafka — mirror of Spring Kafka
+    "aiokafka==0.12.0",
+    # Redis — mirror of Spring Data Redis
+    "redis[hiredis]==5.2.1",
+    # Observability — mirror of Micrometer + OpenTelemetry
+    "opentelemetry-api==1.29.0",
+    "opentelemetry-sdk==1.29.0",
+    "opentelemetry-exporter-otlp==1.29.0",
+    "opentelemetry-instrumentation-fastapi==0.50b0",
+    "opentelemetry-instrumentation-sqlalchemy==0.50b0",
+    "opentelemetry-instrumentation-aiokafka==0.50b0",
+    "opentelemetry-instrumentation-redis==0.50b0",
+    "prometheus-client==0.21.1",
+    "starlette-prometheus==0.10.0",
+    # Logging — structured JSON
+    "structlog==24.4.0",
+    # Rate limiting — mirror of bucket4j
+    "slowapi==0.1.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Test framework — mirror of JUnit 5 + Mockito
+    "pytest==8.3.4",
+    "pytest-asyncio==0.25.2",
+    "pytest-cov==6.0.0",
+    "pytest-mock==3.14.0",
+    "httpx==0.28.1",
+    "respx==0.22.0",
+    "freezegun==1.5.1",
+    "polyfactory==2.18.1",
+    # Lint + type — mirror of Checkstyle + SpotBugs + PMD
+    "ruff==0.8.4",
+    "mypy==1.13.0",
+    # Architecture tests — mirror of ArchUnit
+    "import-linter==2.0",
+    # Container tests — mirror of Testcontainers
+    "testcontainers[postgres,redis,kafka]==4.9.0",
+]
+
+[project.scripts]
+mirador-service = "mirador_service.app:run"
+
+[build-system]
+requires = ["uv_build>=0.11.2,<0.12.0"]
+build-backend = "uv_build"
+
+# ── Tooling configuration ─────────────────────────────────────────────────────
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "E", "W",      # pycodestyle errors + warnings
+    "F",           # pyflakes (unused imports, etc.)
+    "I",           # isort (import order)
+    "B",           # flake8-bugbear (likely bugs)
+    "C90",         # mccabe complexity (= cyclomatic)
+    "N",           # pep8-naming
+    "UP",          # pyupgrade (modern Python idioms)
+    "S",           # flake8-bandit (security)
+    "RUF",         # ruff-specific rules
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.per-file-ignores]
+# Tests : `assert` is the standard pytest assertion mechanism. S101 is the
+# bandit warning about asserts being stripped in `python -O` mode — does not
+# apply to tests (we never run tests with -O). Same logic for hardcoded test
+# data (S106 hardcoded password, S107 hardcoded password default).
+"tests/**/*.py" = ["S101", "S106", "S107"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_unused_ignores = true
+warn_return_any = true
+disallow_untyped_defs = true
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers --cov=mirador_service --cov-report=term-missing --cov-report=html --cov-report=xml --cov-fail-under=80"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "integration: integration tests requiring external services",
+    "slow: tests that take > 1s",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["*/migrations/*", "*/conftest.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
