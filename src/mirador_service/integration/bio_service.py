@@ -20,16 +20,28 @@ Resilience contract :
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Final
 
 import httpx
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
 
-OLLAMA_BASE_URL = "http://localhost:11434"
-OLLAMA_MODEL = "llama3.2"
-PER_ATTEMPT_TIMEOUT_S = 30.0
+# Default Ollama coordinates — local dev. Production overrides via env vars
+# resolved upstream (BioService(base_url=settings.ollama_base_url, ...)).
+# Final[str] : module-level constants protected from accidental rebind.
+OLLAMA_BASE_URL: Final[str] = "http://localhost:11434"
+OLLAMA_MODEL: Final[str] = "llama3.2"
+
+# Per-attempt timeout — Ollama cold-start can take 5-10 s on first call ;
+# we leave headroom up to 30 s. tenacity retries up to 2x = 90 s wall-clock
+# worst case. Final[float] flags this as a tunable knob, not a literal.
+PER_ATTEMPT_TIMEOUT_S: Final[float] = 30.0
+
+# Ollama /api/generate response body. Aliased so consumers read the type
+# name instead of the noisy form, and so a future migration to a typed
+# dataclass / TypedDict only touches one line. PEP 695 `type` keyword.
+type OllamaResponse = dict[str, Any]
 
 
 class BioService:
@@ -78,7 +90,7 @@ class BioService:
             },
         )
         response.raise_for_status()
-        body: dict[str, Any] = response.json()
+        body: OllamaResponse = response.json()
         text = str(body.get("response", "")).strip()
         if not text:
             raise ValueError("Ollama returned empty response")

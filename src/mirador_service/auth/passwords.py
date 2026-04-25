@@ -12,11 +12,15 @@ to 13 in 2-3 years as hardware doubles.
 
 from __future__ import annotations
 
+from typing import Final
+
 import bcrypt
 
 # Cost factor 12 = ~250 ms verify on Apple M3, matches Java side.
 # Each increment doubles the time → 13 next, 14 in ~5 years.
-_COST = 12
+# Final[int] : mypy strict refuses any reassignment in this module — the
+# cost is a security knob, not a runtime configurable.
+_COST: Final[int] = 12
 
 
 def hash_password(plain: str) -> str:

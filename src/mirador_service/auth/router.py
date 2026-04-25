@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from mirador_service.auth.deps import AuthenticatedUser, current_user
 from mirador_service.auth.dtos import LoginRequest, RefreshRequest, TokenResponse
-from mirador_service.auth.jwt import JwtError, TokenType, decode_token, issue_access_token, issue_refresh_token
+from mirador_service.auth.jwt import REFRESH_TOKEN, JwtError, decode_token, issue_access_token, issue_refresh_token
 from mirador_service.auth.models import AppUser, RefreshToken
 from mirador_service.auth.passwords import verify_password
 from mirador_service.config.settings import Settings, get_settings
@@ -73,7 +73,7 @@ async def refresh(
     """
     # 1. Verify token signature + type
     try:
-        claims = decode_token(settings.jwt, body.refresh_token, expected_type=TokenType.REFRESH)
+        claims = decode_token(settings.jwt, body.refresh_token, expected_type=REFRESH_TOKEN)
     except JwtError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
 

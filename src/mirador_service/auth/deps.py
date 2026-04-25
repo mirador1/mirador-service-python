@@ -23,7 +23,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from mirador_service.auth.jwt import JwtError, TokenType, decode_token
+from mirador_service.auth.jwt import ACCESS_TOKEN, JwtError, decode_token
 from mirador_service.config.settings import Settings, get_settings
 
 
@@ -53,7 +53,7 @@ def current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     try:
-        claims = decode_token(settings.jwt, creds.credentials, expected_type=TokenType.ACCESS)
+        claims = decode_token(settings.jwt, creds.credentials, expected_type=ACCESS_TOKEN)
     except JwtError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

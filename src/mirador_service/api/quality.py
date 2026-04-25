@@ -19,6 +19,7 @@ We return static placeholders that match the shape consumed by the UI's
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Literal
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
@@ -27,13 +28,19 @@ from mirador_service import __version__
 
 router = APIRouter(prefix="/actuator", tags=["Actuator"])
 
+# Traffic-light status discriminator. Literal narrows the type to exactly
+# these three values — Pydantic v2 enforces at validation time
+# (extra value → 422 ; mypy refuses constructor call with `status="grun"`
+# at static-analysis time).
+type QualityStatus = Literal["green", "yellow", "red"]
+
 
 class QualitySignal(BaseModel):
     """One quality signal — name + value + status (green / yellow / red)."""
 
     name: str
     value: str
-    status: str  # green | yellow | red
+    status: QualityStatus
     details: dict[str, str] = Field(default_factory=dict)
 
 
@@ -44,7 +51,7 @@ class QualityResponse(BaseModel):
     version: str
     timestamp: datetime
     signals: list[QualitySignal]
-    overall_status: str = Field(serialization_alias="overallStatus")
+    overall_status: QualityStatus = Field(serialization_alias="overallStatus")
 
 
 @router.get("/quality", response_model=QualityResponse)
@@ -88,7 +95,10 @@ async def quality() -> QualityResponse:
             details={"reason": "runner offline ; pipelines pending"},
         ),
     ]
-    overall = (
+    # mypy narrows this to QualityStatus thanks to the Literal aliases
+    # — passing "green"/"yellow"/"red" as a bare str would error at the
+    # QualityResponse() call below.
+    overall: QualityStatus = (
         "red"
         if any(s.status == "red" for s in signals)
         else "yellow"

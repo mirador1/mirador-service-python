@@ -23,7 +23,7 @@ from mirador_service.config.settings import Settings, get_settings
 from mirador_service.customer.repository import CustomerRepository
 from mirador_service.db.base import get_db_session
 from mirador_service.integration.bio_service import BioService
-from mirador_service.integration.todo_service import TodoService
+from mirador_service.integration.todo_service import Todo, TodoService
 from mirador_service.messaging.dtos import (
     CustomerEnrichRequest,
     EnrichedCustomerResponse,
@@ -31,8 +31,15 @@ from mirador_service.messaging.dtos import (
 from mirador_service.messaging.enrichment import EnrichmentService
 from mirador_service.messaging.kafka_client import get_enrichment_service
 
+# Bio response shape on the wire : { "bio": "<text>" }. Aliased for clarity
+# at the def site (PEP 695 `type` keyword).
+type BioResponse = dict[str, str]
+
 router = APIRouter(prefix="/customers", tags=["Customer — enrichment"])
 
+# Lazy singletons — share httpx connection pools across requests. Same
+# pattern as Java's @Bean-scoped service singletons. None until first
+# Depends() resolution to avoid touching the network on app boot.
 _todo_service: TodoService | None = None
 _bio_service: BioService | None = None
 
@@ -102,7 +109,7 @@ async def get_customer_bio(
     id_: int,
     db: Annotated[AsyncSession, Depends(get_db_session)],
     bio: Annotated[BioService, Depends(get_bio_service)],
-) -> dict[str, str]:
+) -> BioResponse:
     """Generate a synthetic bio via Ollama LLM (mirror Java's BioService).
 
     Falls back to a synthetic bio on Ollama outage (graceful degradation —
@@ -125,7 +132,7 @@ async def get_customer_todos(
     id_: int,
     db: Annotated[AsyncSession, Depends(get_db_session)],
     todos: Annotated[TodoService, Depends(get_todo_service)],
-) -> list[dict[str, object]]:
+) -> list[Todo]:
     """Fetch todos for a customer from JSONPlaceholder (external API).
 
     Demonstrates graceful degradation : if the external API is down or

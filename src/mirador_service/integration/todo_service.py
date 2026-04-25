@@ -19,7 +19,7 @@ Resilience contract :
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Final
 
 import httpx
 from tenacity import (
@@ -31,8 +31,19 @@ from tenacity import (
 
 logger = logging.getLogger(__name__)
 
-JSONPLACEHOLDER_BASE_URL = "https://jsonplaceholder.typicode.com"
-PER_ATTEMPT_TIMEOUT_S = 5.0
+# Public test API — JSONPlaceholder serves canned /users/{id}/todos.
+# Final[str] on the URL : prevents accidental rebind from a test setup file.
+JSONPLACEHOLDER_BASE_URL: Final[str] = "https://jsonplaceholder.typicode.com"
+
+# 5 s per attempt, 3 attempts total = ~17 s wall-clock worst case (incl. backoff).
+# Matches Java's Resilience4j retry config (2 retries + 5 s call timeout).
+PER_ATTEMPT_TIMEOUT_S: Final[float] = 5.0
+
+# JSONPlaceholder todo shape : { userId: int, id: int, title: str, completed: bool }.
+# Aliased so consumers read `list[Todo]` and the future migration to a real
+# typed schema (TypedDict / Pydantic model) is a single-line change.
+# PEP 695 `type` keyword.
+type Todo = dict[str, Any]
 
 
 class TodoService:
@@ -47,7 +58,7 @@ class TodoService:
         # Allow injecting a pre-configured client (tests use respx).
         self._client = client or httpx.AsyncClient(timeout=PER_ATTEMPT_TIMEOUT_S)
 
-    async def get_todos(self, user_id: int) -> list[dict[str, Any]]:
+    async def get_todos(self, user_id: int) -> list[Todo]:
         """Fetch todos for a user. Returns [] on any failure (graceful degradation)."""
         try:
             return await self._fetch_with_retry(user_id)
@@ -65,12 +76,12 @@ class TodoService:
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
         reraise=True,
     )
-    async def _fetch_with_retry(self, user_id: int) -> list[dict[str, Any]]:
+    async def _fetch_with_retry(self, user_id: int) -> list[Todo]:
         """Internal — issue the GET with tenacity retry. Reraises after 3 attempts."""
         url = f"{self._base_url}/users/{user_id}/todos"
         response = await self._client.get(url)
         response.raise_for_status()
-        result: list[dict[str, Any]] = response.json()
+        result: list[Todo] = response.json()
         return result
 
     async def aclose(self) -> None:

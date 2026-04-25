@@ -7,8 +7,9 @@ import time
 import pytest
 
 from mirador_service.auth.jwt import (
+    ACCESS_TOKEN,
+    REFRESH_TOKEN,
     JwtError,
-    TokenType,
     decode_token,
     issue_access_token,
     issue_refresh_token,
@@ -28,18 +29,18 @@ def jwt_settings() -> JwtSettings:
 
 def test_issue_access_token_round_trip(jwt_settings: JwtSettings) -> None:
     token, ttl = issue_access_token(jwt_settings, "alice", "ROLE_ADMIN")
-    claims = decode_token(jwt_settings, token, expected_type=TokenType.ACCESS)
+    claims = decode_token(jwt_settings, token, expected_type=ACCESS_TOKEN)
     assert claims["sub"] == "alice"
     assert claims["role"] == "ROLE_ADMIN"
-    assert claims["type"] == TokenType.ACCESS
+    assert claims["type"] == ACCESS_TOKEN
     assert ttl == 15 * 60
 
 
 def test_issue_refresh_token_round_trip(jwt_settings: JwtSettings) -> None:
     token, ttl = issue_refresh_token(jwt_settings, "bob", "ROLE_USER")
-    claims = decode_token(jwt_settings, token, expected_type=TokenType.REFRESH)
+    claims = decode_token(jwt_settings, token, expected_type=REFRESH_TOKEN)
     assert claims["sub"] == "bob"
-    assert claims["type"] == TokenType.REFRESH
+    assert claims["type"] == REFRESH_TOKEN
     assert ttl == 30 * 24 * 60 * 60
 
 
@@ -47,7 +48,7 @@ def test_decode_rejects_wrong_token_type(jwt_settings: JwtSettings) -> None:
     """Access token can't be used where refresh expected (and vice versa)."""
     access, _ = issue_access_token(jwt_settings, "alice", "ROLE_USER")
     with pytest.raises(JwtError, match="Wrong token type"):
-        decode_token(jwt_settings, access, expected_type=TokenType.REFRESH)
+        decode_token(jwt_settings, access, expected_type=REFRESH_TOKEN)
 
 
 def test_decode_rejects_invalid_signature(jwt_settings: JwtSettings) -> None:
@@ -55,14 +56,14 @@ def test_decode_rejects_invalid_signature(jwt_settings: JwtSettings) -> None:
     # Tamper with the token
     tampered = token + "x"
     with pytest.raises(JwtError, match="Invalid token"):
-        decode_token(jwt_settings, tampered, expected_type=TokenType.ACCESS)
+        decode_token(jwt_settings, tampered, expected_type=ACCESS_TOKEN)
 
 
 def test_decode_rejects_wrong_secret(jwt_settings: JwtSettings) -> None:
     token, _ = issue_access_token(jwt_settings, "alice", "ROLE_USER")
     other = JwtSettings(secret="different-secret-key-cannot-decode-other")
     with pytest.raises(JwtError, match="Invalid token"):
-        decode_token(other, token, expected_type=TokenType.ACCESS)
+        decode_token(other, token, expected_type=ACCESS_TOKEN)
 
 
 def test_decode_rejects_expired_token() -> None:
@@ -75,4 +76,4 @@ def test_decode_rejects_expired_token() -> None:
     # Sleep just past the iat second so exp < now
     time.sleep(1.1)
     with pytest.raises(JwtError, match="expired"):
-        decode_token(settings, token, expected_type=TokenType.ACCESS)
+        decode_token(settings, token, expected_type=ACCESS_TOKEN)
