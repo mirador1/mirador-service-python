@@ -112,21 +112,20 @@ warn_return_any = true
 disallow_untyped_defs = true
 plugins = ["pydantic.mypy"]
 
-# aiokafka : no py.typed marker yet (issue tracked upstream). Skip stub
-# checking for this single library — we still type-check our own code that
-# uses it, but without import-time errors.
+# aiokafka + testcontainers : no py.typed markers yet (tracked upstream).
+# Skip stub checking for these libraries — we still type-check our own
+# code that uses them, but without import-time errors.
 [[tool.mypy.overrides]]
-module = ["aiokafka", "aiokafka.*"]
+module = ["aiokafka", "aiokafka.*", "testcontainers.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 # cov-fail-under=80 — Étape 9 batch lifted baseline 65 → 80 :
 #  - greenlet+thread coverage hooks fix FastAPI router undercounting (+6 pts).
 #  - 16 new tests across auth deps + repository edge cases + alembic + otel.
-# Remaining gap : kafka_client consumer-loop boilerplate (24%) and
-# observability/otel.py beta-instrumentation (44%) — both genuinely need
-# integration containers (testcontainers Kafka + LGTM) covered in Étape 10.
-addopts = "-ra --strict-markers --cov=mirador_service --cov-report=term-missing --cov-report=html --cov-report=xml --cov-fail-under=80"
+# `-m "not integration"` is the DEFAULT — keeps `pytest` fast (no Docker).
+# Run integration suite explicitly via : pytest -m integration
+addopts = "-ra --strict-markers -m 'not integration' --cov=mirador_service --cov-report=term-missing --cov-report=html --cov-report=xml --cov-fail-under=80"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [

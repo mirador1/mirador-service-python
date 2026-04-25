@@ -46,16 +46,25 @@ Stable checkpoint pending (no tag yet — needs first green main pipeline post-m
 
 ### Higher value, more effort
 
-- [ ] **Étape 10 — testcontainers integration tests** :
-      - Postgres : real `db/base.py` engine lifecycle + repository CRUD
-        against actual SQL behaviour (server defaults, JSONB, UNIQUE
-        violations on insert).
-      - Kafka : real producer + consumer round-trip, verify trace
-        propagation in headers, verify rebalance on restart.
+- [~] **Étape 10 — testcontainers integration tests** : SCAFFOLD LANDED 2026-04-25
+      - tests/integration/conftest.py : postgres_container + kafka_container
+        session-scoped fixtures (testcontainers PostgresContainer +
+        KafkaContainer pinned to 16.6-alpine + cp-kafka:7.6.1).
+      - tests/integration/test_repository_postgres.py : 3 tests covering
+        server defaults, UNIQUE violation IntegrityError, case-insensitive
+        search against real Postgres.
+      - tests/integration/test_kafka_round_trip.py : 1 e2e test covering
+        request → handle_request → deliver_reply with real broker.
+      - pyproject : default `pytest` skips integration via `-m 'not integration'` ;
+        opt-in via `pytest -m integration`.
+
+      STILL PENDING :
       - LGTM container : verify OTel spans actually arrive in Tempo
         (HTTP query to `localhost:3200/api/traces?service=mirador-service-python`).
-      Closes the remaining coverage gaps (`kafka_client.py` 24%,
-      `observability/otel.py` 44%, `db/base.py` 39%).
+      - GitLab CI `integration-tests` job : separate stage, parallel to
+        lint + unit, with Docker-in-Docker service.
+      - Run integration suite locally to verify the scaffolds actually
+        work end-to-end (testcontainers needs Docker daemon + a kafka pull).
 
 - [ ] **Étape 11 — Refresh token cleanup job** : APScheduler async cron that
       deletes revoked + expired entries from `refresh_token` daily at 03:00.
