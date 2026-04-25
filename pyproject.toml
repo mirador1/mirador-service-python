@@ -26,7 +26,7 @@ dependencies = [
     "alembic==1.14.0",
     # Auth + JWT — mirror of Spring Security + jjwt
     # Kafka — mirror of Spring Kafka
-    "aiokafka==0.12.0",
+    "aiokafka==0.13.0",  # 0.13.0 ships cp314 wheels ; 0.12.0 didn't (forced source build → cc missing in CI slim image)
     # Redis — mirror of Spring Data Redis
     "redis[hiredis]==5.2.1",
     # Observability — mirror of Micrometer + OpenTelemetry
