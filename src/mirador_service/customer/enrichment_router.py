@@ -76,7 +76,7 @@ async def enrich_customer(
         raise HTTPException(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             detail=(
-                f"Kafka enrichment did not reply within " f"{settings.kafka.enrich_timeout_seconds}s for customer {id_}"
+                f"Kafka enrichment did not reply within {settings.kafka.enrich_timeout_seconds}s for customer {id_}"
             ),
         ) from exc
     return EnrichedCustomerResponse(

@@ -18,6 +18,7 @@ include:
   - local: .gitlab-ci/quality.yml
   - local: .gitlab-ci/build.yml
   - local: .gitlab-ci/deploy.yml
+  - local: .gitlab-ci/docs.yml
 
 workflow:
   # Mirror Java's allowlist pattern : only run pipeline when changes touch
@@ -55,7 +56,7 @@ stages:
   - compat
 
 variables:
-  PYTHON_VERSION: "3.13"
+  PYTHON_VERSION: "3.14"
   UV_VERSION: "0.11.2"
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
   PYTHONUNBUFFERED: "1"

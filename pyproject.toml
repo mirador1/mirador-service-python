@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "Benoît Besson", email = "benoit.besson@gmail.com" }
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 license = { text = "MIT" }
 keywords = ["fastapi", "demo", "observability", "kafka", "redis", "opentelemetry"]
 
@@ -18,8 +18,8 @@ dependencies = [
     "uvicorn[standard]==0.34.0",
     "gunicorn==23.0.0",
     # DTO + validation — mirror of Jackson + Bean Validation
-    "pydantic[email]==2.10.4",
-    "pydantic-settings==2.7.0",
+    "pydantic[email]>=2.11",
+    "pydantic-settings>=2.7",
     # ORM + migrations — mirror of Spring Data JPA + Flyway
     "sqlalchemy[asyncio]==2.0.36",
     "asyncpg==0.30.0",
@@ -65,8 +65,8 @@ dev = [
     "freezegun==1.5.1",
     "polyfactory==2.18.1",
     # Lint + type — mirror of Checkstyle + SpotBugs + PMD
-    "ruff==0.8.4",
-    "mypy==1.13.0",
+    "ruff>=0.13",
+    "mypy>=1.18",
     # Architecture tests — mirror of ArchUnit
     "import-linter==2.0",
     # Container tests — mirror of Testcontainers
@@ -84,7 +84,7 @@ build-backend = "uv_build"
 
 [tool.ruff]
 line-length = 120
-target-version = "py313"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = [
@@ -110,7 +110,7 @@ max-complexity = 10
 "tests/**/*.py" = ["S101", "S105", "S106", "S107"]
 
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.14"
 strict = true
 warn_unused_ignores = true
 warn_return_any = true
@@ -159,6 +159,10 @@ exclude_lines = [
 dev = [
     "aiosqlite==0.20.0",
     "fakeredis>=2.35.1",
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.7.6",
+    "mkdocstrings[python]>=1.0.4",
+    "ruff>=0.8.4",
     "types-passlib>=1.7.7.20260211",
     "types-python-jose>=3.5.0.20260408",
 ]

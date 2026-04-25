@@ -44,7 +44,7 @@ class RecentCustomerBuffer:
                 if isinstance(item, bytes):
                     item = item.decode("utf-8")
                 result.append(CustomerResponse.model_validate(json.loads(item)))
-            except (json.JSONDecodeError, ValueError):
+            except json.JSONDecodeError, ValueError:
                 # Malformed entry : skip silently — the buffer is best-effort.
                 continue
         return result
