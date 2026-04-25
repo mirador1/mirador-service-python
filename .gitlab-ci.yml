@@ -45,7 +45,13 @@ workflow:
         - "CLAUDE.md"
         - "TASKS.md"
         - ".env.example"
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE != "schedule"
+    # Push on main OR dev triggers pipeline. We need BOTH explicitly because :
+    # - default_branch=main (per project settings, matches the convention) → main pushes match.
+    # - dev is the working branch where commits land first, MUST also trigger pipelines
+    #   (not the default_branch). Without this explicit `dev` rule, every dev push
+    #   was silently ignored after we corrected default_branch from dev → main on
+    #   2026-04-25 (root cause of "post-merge main pipelines never ran").
+    - if: $CI_COMMIT_BRANCH =~ /^(main|dev)$/ && $CI_PIPELINE_SOURCE != "schedule"
     - if: $CI_PIPELINE_SOURCE == "schedule"
 
 stages:
