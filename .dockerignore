@@ -20,7 +20,10 @@ tests/
 alembic/
 infra/
 bin/
+# Exclude doc Markdown but KEEP README.md — it's referenced by pyproject.toml
+# (`readme = "README.md"`) and uv build needs it present.
 *.md
+!README.md
 *.log
 .env
 .env.example
