@@ -21,9 +21,7 @@ if TYPE_CHECKING:
 
 
 @pytest.mark.asyncio
-async def test_enrich_returns_200_with_display_name(
-    client: AsyncClient, app: FastAPI
-) -> None:
+async def test_enrich_returns_200_with_display_name(client: AsyncClient, app: FastAPI) -> None:
     # First create a customer so /enrich can find it
     create = await client.post("/customers", json={"name": "Bob", "email": "bob@x.com"})
     assert create.status_code == 201
@@ -57,9 +55,7 @@ async def test_enrich_returns_200_with_display_name(
 
 
 @pytest.mark.asyncio
-async def test_enrich_returns_404_for_unknown_customer(
-    client: AsyncClient, app: FastAPI
-) -> None:
+async def test_enrich_returns_404_for_unknown_customer(client: AsyncClient, app: FastAPI) -> None:
     fake = AsyncMock(spec=EnrichmentService)
     app.dependency_overrides[get_enrichment_service] = lambda: fake
     try:
@@ -71,12 +67,8 @@ async def test_enrich_returns_404_for_unknown_customer(
 
 
 @pytest.mark.asyncio
-async def test_enrich_returns_504_on_kafka_timeout(
-    client: AsyncClient, app: FastAPI
-) -> None:
-    create = await client.post(
-        "/customers", json={"name": "Carol", "email": "carol@x.com"}
-    )
+async def test_enrich_returns_504_on_kafka_timeout(client: AsyncClient, app: FastAPI) -> None:
+    create = await client.post("/customers", json={"name": "Carol", "email": "carol@x.com"})
     customer_id = create.json()["id"]
 
     fake = AsyncMock(spec=EnrichmentService)
@@ -100,9 +92,7 @@ async def test_enrich_returns_503_when_kafka_not_started(
     Lifespan never started Kafka in unit tests (ASGITransport doesn't trigger
     it) so the singleton is None → HTTPException 503.
     """
-    create = await client.post(
-        "/customers", json={"name": "Dave", "email": "dave@x.com"}
-    )
+    create = await client.post("/customers", json={"name": "Dave", "email": "dave@x.com"})
     customer_id = create.json()["id"]
 
     response = await client.get(f"/customers/{customer_id}/enrich")

@@ -72,9 +72,7 @@ async def test_find_all_search_filters_by_name_or_email(
 
 @pytest.mark.asyncio
 async def test_patch_with_no_fields_is_noop(db_session: AsyncSession) -> None:
-    created = await CustomerRepository.create(
-        db_session, name="Original", email="original@x.com"
-    )
+    created = await CustomerRepository.create(db_session, name="Original", email="original@x.com")
     await db_session.commit()
     patched = await CustomerRepository.patch(db_session, created.id, name=None, email=None)
     assert patched.name == "Original"
@@ -83,13 +81,9 @@ async def test_patch_with_no_fields_is_noop(db_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_patch_only_name(db_session: AsyncSession) -> None:
-    created = await CustomerRepository.create(
-        db_session, name="OldName", email="keep@x.com"
-    )
+    created = await CustomerRepository.create(db_session, name="OldName", email="keep@x.com")
     await db_session.commit()
-    patched = await CustomerRepository.patch(
-        db_session, created.id, name="NewName", email=None
-    )
+    patched = await CustomerRepository.patch(db_session, created.id, name="NewName", email=None)
     assert patched.name == "NewName"
     assert patched.email == "keep@x.com"
 
@@ -98,9 +92,7 @@ async def test_patch_only_name(db_session: AsyncSession) -> None:
 async def test_update_replaces_both_fields(db_session: AsyncSession) -> None:
     created = await CustomerRepository.create(db_session, name="A", email="a@x.com")
     await db_session.commit()
-    updated = await CustomerRepository.update(
-        db_session, created.id, name="B", email="b@x.com"
-    )
+    updated = await CustomerRepository.update(db_session, created.id, name="B", email="b@x.com")
     assert updated.name == "B"
     assert updated.email == "b@x.com"
 
@@ -119,9 +111,7 @@ async def test_delete_raises_when_missing(db_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_delete_removes_existing(db_session: AsyncSession) -> None:
-    created = await CustomerRepository.create(
-        db_session, name="ToDelete", email="del@x.com"
-    )
+    created = await CustomerRepository.create(db_session, name="ToDelete", email="del@x.com")
     await db_session.commit()
     await CustomerRepository.delete(db_session, created.id)
     assert await CustomerRepository.find_by_id(db_session, created.id) is None

@@ -91,8 +91,9 @@ async def start_kafka(settings: KafkaSettings) -> None:
 
     _consumer_tasks.append(asyncio.create_task(_consume_requests()))
     _consumer_tasks.append(asyncio.create_task(_consume_replies()))
-    logger.info("kafka_started request_topic=%s reply_topic=%s",
-                settings.customer_request_topic, settings.customer_reply_topic)
+    logger.info(
+        "kafka_started request_topic=%s reply_topic=%s", settings.customer_request_topic, settings.customer_reply_topic
+    )
 
 
 async def stop_kafka() -> None:

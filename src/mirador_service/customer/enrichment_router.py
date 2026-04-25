@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from mirador_service.config.settings import Settings, get_settings
 from mirador_service.customer.repository import CustomerRepository
 from mirador_service.db.base import get_db_session
+from mirador_service.integration.todo_service import TodoService
 from mirador_service.messaging.dtos import (
     CustomerEnrichRequest,
     EnrichedCustomerResponse,
@@ -30,6 +31,16 @@ from mirador_service.messaging.enrichment import EnrichmentService
 from mirador_service.messaging.kafka_client import get_enrichment_service
 
 router = APIRouter(prefix="/customers", tags=["Customer — enrichment"])
+
+_todo_service: TodoService | None = None
+
+
+def get_todo_service() -> TodoService:
+    """FastAPI Depends provider — lazy singleton to share the httpx pool."""
+    global _todo_service
+    if _todo_service is None:
+        _todo_service = TodoService()
+    return _todo_service
 
 
 @router.get("/{id_}/enrich", response_model=EnrichedCustomerResponse)
@@ -60,15 +71,12 @@ async def enrich_customer(
         email=customer.email,
     )
     try:
-        reply = await enrichment.request_reply(
-            request, timeout_s=float(settings.kafka.enrich_timeout_seconds)
-        )
+        reply = await enrichment.request_reply(request, timeout_s=float(settings.kafka.enrich_timeout_seconds))
     except TimeoutError as exc:
         raise HTTPException(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             detail=(
-                f"Kafka enrichment did not reply within "
-                f"{settings.kafka.enrich_timeout_seconds}s for customer {id_}"
+                f"Kafka enrichment did not reply within " f"{settings.kafka.enrich_timeout_seconds}s for customer {id_}"
             ),
         ) from exc
     return EnrichedCustomerResponse(
@@ -77,3 +85,28 @@ async def enrich_customer(
         email=reply.email,
         display_name=reply.display_name,
     )
+
+
+@router.get("/{id_}/todos")
+async def get_customer_todos(
+    id_: int,
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+    todos: Annotated[TodoService, Depends(get_todo_service)],
+) -> list[dict[str, object]]:
+    """Fetch todos for a customer from JSONPlaceholder (external API).
+
+    Demonstrates graceful degradation : if the external API is down or
+    flakes, returns an empty list — never 5xx. Customer page renders
+    "No todos available" rather than an error banner.
+
+    404 only on customer-not-found-in-our-DB (user expectation : we
+    own the customer concept ; JSONPlaceholder only owns todos).
+    """
+    try:
+        await CustomerRepository.find_by_id_or_raise(db, id_)
+    except NoResultFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    return await todos.get_todos(id_)

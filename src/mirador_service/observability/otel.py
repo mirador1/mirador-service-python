@@ -59,12 +59,14 @@ def init_otel(settings: Settings, app: FastAPI) -> None:
     instance — wired here vs in create_app() because resource attributes
     require the settings object.
     """
-    resource = Resource.create({
-        "service.name": settings.otel_service_name,
-        "service.namespace": "mirador",  # groups Python + Java services in Tempo / Mimir
-        "service.version": __version__,
-        "deployment.environment": "dev" if settings.dev_mode else "prod",
-    })
+    resource = Resource.create(
+        {
+            "service.name": settings.otel_service_name,
+            "service.namespace": "mirador",  # groups Python + Java services in Tempo / Mimir
+            "service.version": __version__,
+            "deployment.environment": "dev" if settings.dev_mode else "prod",
+        }
+    )
 
     # ── Tracer ────────────────────────────────────────────────────────────
     span_exporter = OTLPSpanExporter(
@@ -106,7 +108,9 @@ def init_otel(settings: Settings, app: FastAPI) -> None:
 
     logger.info(
         "otel_started endpoint=%s service=%s version=%s",
-        settings.otel_endpoint, settings.otel_service_name, __version__,
+        settings.otel_endpoint,
+        settings.otel_service_name,
+        __version__,
     )
 
 

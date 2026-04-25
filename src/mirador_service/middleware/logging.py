@@ -53,9 +53,7 @@ def configure_logging(*, dev_mode: bool) -> None:
     )
 
     final_renderer: Any = (
-        structlog.dev.ConsoleRenderer(colors=True)
-        if dev_mode
-        else structlog.processors.JSONRenderer()
+        structlog.dev.ConsoleRenderer(colors=True) if dev_mode else structlog.processors.JSONRenderer()
     )
 
     formatter = structlog.stdlib.ProcessorFormatter(

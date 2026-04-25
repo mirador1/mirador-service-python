@@ -36,9 +36,7 @@ def _build_probe(app: FastAPI) -> APIRouter:
 
 
 @pytest.mark.asyncio
-async def test_current_user_returns_401_without_bearer(
-    client: AsyncClient, app: FastAPI
-) -> None:
+async def test_current_user_returns_401_without_bearer(client: AsyncClient, app: FastAPI) -> None:
     _build_probe(app)
     response = await client.get("/probe/me")
     assert response.status_code == 401
@@ -46,9 +44,7 @@ async def test_current_user_returns_401_without_bearer(
 
 
 @pytest.mark.asyncio
-async def test_current_user_returns_401_for_invalid_token(
-    client: AsyncClient, app: FastAPI
-) -> None:
+async def test_current_user_returns_401_for_invalid_token(client: AsyncClient, app: FastAPI) -> None:
     _build_probe(app)
     response = await client.get(
         "/probe/me",
@@ -58,9 +54,7 @@ async def test_current_user_returns_401_for_invalid_token(
 
 
 @pytest.mark.asyncio
-async def test_current_user_decodes_valid_access_token(
-    client: AsyncClient, app: FastAPI
-) -> None:
+async def test_current_user_decodes_valid_access_token(client: AsyncClient, app: FastAPI) -> None:
     _build_probe(app)
     settings = get_settings()
     token, _ = issue_access_token(settings.jwt, username="alice", role="ROLE_USER")
@@ -73,9 +67,7 @@ async def test_current_user_decodes_valid_access_token(
 
 
 @pytest.mark.asyncio
-async def test_current_user_rejects_refresh_token_on_access_route(
-    client: AsyncClient, app: FastAPI
-) -> None:
+async def test_current_user_rejects_refresh_token_on_access_route(client: AsyncClient, app: FastAPI) -> None:
     """A refresh token MUST NOT be accepted as an access token."""
     _build_probe(app)
     from mirador_service.auth.jwt import issue_refresh_token
@@ -90,9 +82,7 @@ async def test_current_user_rejects_refresh_token_on_access_route(
 
 
 @pytest.mark.asyncio
-async def test_require_role_returns_403_for_wrong_role(
-    client: AsyncClient, app: FastAPI
-) -> None:
+async def test_require_role_returns_403_for_wrong_role(client: AsyncClient, app: FastAPI) -> None:
     _build_probe(app)
     settings = get_settings()
     token, _ = issue_access_token(settings.jwt, username="alice", role="ROLE_USER")
@@ -105,9 +95,7 @@ async def test_require_role_returns_403_for_wrong_role(
 
 
 @pytest.mark.asyncio
-async def test_require_role_passes_for_matching_role(
-    client: AsyncClient, app: FastAPI
-) -> None:
+async def test_require_role_passes_for_matching_role(client: AsyncClient, app: FastAPI) -> None:
     _build_probe(app)
     settings = get_settings()
     token, _ = issue_access_token(settings.jwt, username="bob", role="ROLE_ADMIN")

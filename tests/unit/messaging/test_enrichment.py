@@ -60,7 +60,9 @@ async def test_request_reply_completes_when_reply_delivered() -> None:
     correlation_id = next(v.decode() for k, v in headers if k == "correlation-id")
 
     reply = CustomerEnrichReply(
-        id=1, name="Alice", email="alice@example.com",
+        id=1,
+        name="Alice",
+        email="alice@example.com",
         display_name="Alice <alice@example.com>",
     )
     service.deliver_reply(correlation_id, reply)
@@ -96,9 +98,7 @@ async def test_deliver_reply_unknown_correlation_id_is_silent() -> None:
     service = EnrichmentService(producer=producer, request_topic="req", reply_topic="rep")
 
     # No future registered — should not raise
-    reply = CustomerEnrichReply(
-        id=1, name="A", email="a@x.com", display_name="A <a@x.com>"
-    )
+    reply = CustomerEnrichReply(id=1, name="A", email="a@x.com", display_name="A <a@x.com>")
     service.deliver_reply("unknown-cid", reply)
 
 
