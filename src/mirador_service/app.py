@@ -15,6 +15,7 @@ from fastapi import FastAPI
 
 from mirador_service import __version__
 from mirador_service.api.actuator import router as actuator_router
+from mirador_service.auth.cleanup import start_scheduler, stop_scheduler
 from mirador_service.auth.router import router as auth_router
 from mirador_service.config.settings import get_settings
 from mirador_service.customer.enrichment_router import router as enrichment_router
@@ -52,8 +53,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await start_kafka(settings.kafka)
     except Exception as exc:
         logger.warning("kafka_start_failed reason=%s — /customers/{id}/enrich will return 503", exc)
+    # Refresh-token cleanup cron — daily at 03:00 UTC
+    try:
+        start_scheduler()
+    except Exception as exc:
+        logger.warning("scheduler_start_failed reason=%s — refresh-token cleanup disabled", exc)
     yield
     # Shutdown : close in reverse-startup order
+    stop_scheduler()
     await stop_kafka()
     await close_redis()
     await reset_engine()

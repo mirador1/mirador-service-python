@@ -50,6 +50,7 @@ dependencies = [
     "tenacity==9.1.4",
     # HTTP client for outbound calls to JSONPlaceholder, Ollama, etc.
     "httpx==0.28.1",
+    "apscheduler>=3.11.2",
 ]
 
 [project.optional-dependencies]
@@ -106,7 +107,7 @@ max-complexity = 10
 # bandit warning about asserts being stripped in `python -O` mode — does not
 # apply to tests (we never run tests with -O). Same logic for hardcoded test
 # data (S106 hardcoded password, S107 hardcoded password default).
-"tests/**/*.py" = ["S101", "S106", "S107"]
+"tests/**/*.py" = ["S101", "S105", "S106", "S107"]
 
 [tool.mypy]
 python_version = "3.13"
@@ -120,7 +121,7 @@ plugins = ["pydantic.mypy"]
 # Skip stub checking for these libraries — we still type-check our own
 # code that uses them, but without import-time errors.
 [[tool.mypy.overrides]]
-module = ["aiokafka", "aiokafka.*", "testcontainers.*"]
+module = ["aiokafka", "aiokafka.*", "testcontainers.*", "apscheduler.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
