@@ -14,6 +14,8 @@ from fastapi import FastAPI
 
 from mirador_service import __version__
 from mirador_service.config.settings import get_settings
+from mirador_service.customer.router import router as customer_router
+from mirador_service.db.base import reset_engine
 
 
 @asynccontextmanager
@@ -22,23 +24,23 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     Order matters :
     1. OTel SDK init FIRST so subsequent setup is traced.
-    2. DB pool open.
+    2. DB pool open (lazy via get_engine() on first session request).
     3. Redis client open.
     4. Kafka producer/consumer start.
     5. Yield → serve requests.
     6. Reverse on shutdown.
     """
-    # TODO : init OTel SDK
-    # TODO : open DB pool, Redis client, Kafka producer/consumer
+    # TODO : init OTel SDK + Redis client + Kafka producer/consumer
     yield
-    # TODO : close in reverse order
+    # Shutdown : close DB engine (releases pool connections)
+    await reset_engine()
+    # TODO : close Redis + Kafka
 
 
 def create_app() -> FastAPI:
     """App factory — used by uvicorn (`mirador_service.app:app`) and tests."""
-    # settings is intentionally instantiated here (even if unused at this stage)
-    # to fail-fast if env config is broken at app construction time vs first
-    # request — same pattern as Spring's @PostConstruct on @Configuration beans.
+    # Fail-fast on broken env config at app construction time vs first request
+    # (same pattern as Spring's @PostConstruct on @Configuration beans).
     get_settings()
     app = FastAPI(
         title="Mirador Customer Service (Python)",
@@ -48,7 +50,7 @@ def create_app() -> FastAPI:
     )
 
     # TODO : register CORS, request-id, logging, rate-limit middleware
-    # TODO : mount routers (auth, customer, actuator)
+    app.include_router(customer_router)
 
     @app.get("/", include_in_schema=False)
     async def root() -> dict[str, str]:
