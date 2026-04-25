@@ -15,9 +15,12 @@ from fastapi import FastAPI
 
 from mirador_service import __version__
 from mirador_service.api.actuator import router as actuator_router
+from mirador_service.api.quality import router as quality_router
 from mirador_service.auth.cleanup import start_scheduler, stop_scheduler
 from mirador_service.auth.router import router as auth_router
 from mirador_service.config.settings import get_settings
+from mirador_service.customer.audit_router import router as audit_router
+from mirador_service.customer.diagnostic_router import router as diagnostic_router
 from mirador_service.customer.enrichment_router import router as enrichment_router
 from mirador_service.customer.router import router as customer_router
 from mirador_service.db.base import reset_engine
@@ -85,9 +88,12 @@ def create_app() -> FastAPI:
     register_middleware(app, settings)
 
     app.include_router(actuator_router)
+    app.include_router(quality_router)
     app.include_router(auth_router)
     app.include_router(customer_router)
     app.include_router(enrichment_router)
+    app.include_router(audit_router)
+    app.include_router(diagnostic_router)
 
     @app.get("/", include_in_schema=False)
     async def root() -> dict[str, str]:

@@ -40,9 +40,7 @@ if TYPE_CHECKING:
 # (Étape 3) so no extra infra. Falls back to memory if Redis is unreachable.
 def _build_limiter(settings: Settings) -> Limiter:
     """Limiter with Redis backend in prod / multi-replica, memory in dev."""
-    redis_uri = (
-        f"redis://{settings.redis.host}:{settings.redis.port}/{settings.redis.db}"
-    )
+    redis_uri = f"redis://{settings.redis.host}:{settings.redis.port}/{settings.redis.db}"
     # SlowAPI's storage_uri="memory://" or "redis://..." — pick redis when
     # we're not in dev_mode (multi-replica = real risk of counter drift).
     storage_uri = "memory://" if settings.dev_mode else redis_uri
