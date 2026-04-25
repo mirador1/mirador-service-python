@@ -47,6 +47,7 @@ class KafkaSettings(BaseSettings):
     bootstrap_servers: str = "localhost:9092"
     customer_request_topic: str = "customer.enrich.request"
     customer_reply_topic: str = "customer.enrich.reply"
+    customer_created_topic: str = "customer.created"
     enrich_timeout_seconds: int = 5
 
 
