@@ -63,6 +63,10 @@ dev = [
     "respx==0.22.0",
     "freezegun==1.5.1",
     "polyfactory==2.18.1",
+    # Property-based testing — generate adversarial inputs, find edge cases
+    # the example-based tests overlook. Per ADR-0007 §4 (selected paths only :
+    # Customer DTOs, JWT round-trip, RecentBuffer LIFO invariant).
+    "hypothesis>=6.122",
     # Lint + type — mirror of Checkstyle + SpotBugs + PMD
     "ruff>=0.13",
     "mypy>=1.18",
