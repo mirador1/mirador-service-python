@@ -25,6 +25,3 @@ here ; done items removed (use `git tag -l` for history).
   Revisit when uv ships musl wheels for all Rust-extension deps
   (pydantic_core, cryptography, bcrypt).
 
-- 🟢 **GitHub mirror** : Python repo not yet pushed to a github mirror.
-  Java + UI both have one. Set up `git remote add github ...` + auto-push
-  cron under `bin/launchd/`.
