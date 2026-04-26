@@ -101,6 +101,12 @@ Captured from portfolio review session feedback :
 
 ## 🎯 Augmenter la surface fonctionnelle — nouvelles entités
 
+**🚩 État au flush 2026-04-26 12:14** : work pas encore démarré en
+Python. Bloqué sur clarification utilisateur côté Java (voir
+[Java TASKS.md](https://gitlab.com/mirador1/mirador-service-java/-/blob/main/TASKS.md)
+"Awaiting clarification" — l'utilisateur a interrompu le foundation
+Java et il faut confirmer le scope avant de redémarrer en parallèle).
+
 ☐ Mirror les 3 nouvelles entités côté Python (parité OpenAPI obligatoire
 avec Java — l'UI doit pouvoir basculer entre les 2 backends transparently).
 
