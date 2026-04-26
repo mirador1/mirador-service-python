@@ -109,8 +109,9 @@ Foundation **shippée 2026-04-26** dans [stable-py-v0.6.4](https://gitlab.com/mi
 
 ### Reste à compléter (post-foundation)
 
-- ☐ **ADR data model** : documenter Order ↔ Product ↔ OrderLine + justifier
-  OrderLine comme entité (snapshot prix, statut individuel, refund par ligne).
+- ✅ **ADR data model** — landed 2026-04-26 in shared as
+  [shared ADR-0059](https://gitlab.com/mirador1/mirador-service-shared/-/blob/main/docs/adr/0059-customer-order-product-data-model.md)
+  (cross-language : Java + Python + UI). Documents 6 invariants for Hypothesis property tests.
 - ☐ **Coverage ≥ 90 %** sur `src/mirador_service/{order,product}/` —
   cf. ADR-0014. Si manque, combler avec property tests Hypothesis.
 - ☐ **Property-based tests Hypothesis** (cf. ADR-0011 §"Where to use") :
