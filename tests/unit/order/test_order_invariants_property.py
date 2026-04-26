@@ -14,9 +14,11 @@ from decimal import Decimal
 
 from hypothesis import given
 from hypothesis import strategies as st
+from pydantic import ValidationError
 
 from mirador_service.order.order_line_models import OrderLine, OrderLineStatus
 from mirador_service.order.totals import compute_total
+from mirador_service.product.dtos import ProductCreate
 
 
 def _line(quantity: int, unit_price: Decimal) -> OrderLine:
@@ -205,10 +207,6 @@ def test_unit_price_at_order_does_not_follow_product_mutation(
 
 
 # -- Invariant 2 : stock non-negativity --------------------------------
-
-
-from mirador_service.product.dtos import ProductCreate  # noqa: E402
-from pydantic import ValidationError  # noqa: E402
 
 
 @given(stock=st.integers(min_value=0, max_value=1_000_000))
