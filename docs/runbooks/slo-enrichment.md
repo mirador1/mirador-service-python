@@ -79,5 +79,5 @@ Same cadence as availability runbook PLUS :
 
 - [SLA promise](../slo/sla.md)
 - [SLO definition](../slo/slo.yaml)
-- [ADR Kafka request-reply pattern](../adr/0005-in-cluster-kafka.md) (if exists)
+- [ADR-0004 Kafka request-reply pattern](../adr/0004-kafka-request-reply-pattern.md)
 - [Apache Kafka — consumer-groups admin tool](https://kafka.apache.org/documentation/#operations_consumergroups)
