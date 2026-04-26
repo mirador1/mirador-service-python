@@ -139,9 +139,7 @@ def _is_valid_line_transition(src: OrderLineStatus, dst: OrderLineStatus) -> boo
 
 
 @given(st.sampled_from(OrderLineStatus), st.sampled_from(OrderLineStatus))
-def test_order_line_status_transitions_match_doc(
-    src: OrderLineStatus, dst: OrderLineStatus
-) -> None:
+def test_order_line_status_transitions_match_doc(src: OrderLineStatus, dst: OrderLineStatus) -> None:
     """Invariant 5 (ADR-0059) : OrderLine status transition graph (3x3 = 9)."""
     expected = _is_valid_line_transition(src, dst)
     assert src.can_transition_to(dst) is expected, f"{src} → {dst} expected={expected}"
@@ -202,6 +200,5 @@ def test_unit_price_at_order_does_not_follow_product_mutation(
     _ = post_mutation_price
 
     assert line.unit_price_at_order == pre_snapshot_price, (
-        f"snapshot must remain {pre_snapshot_price} regardless of later "
-        f"product price {post_mutation_price}"
+        f"snapshot must remain {pre_snapshot_price} regardless of later product price {post_mutation_price}"
     )
