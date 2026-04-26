@@ -1,0 +1,164 @@
+#!/usr/bin/env bash
+# =============================================================================
+# bin/dev/mirador-doctor — single-command "tout va bien ?" for Python side.
+#
+# Mirror of the Java side's mirador-doctor. Runs every cheap check in one
+# sweep so you know within ~10 s if your dev environment is healthy. Designed
+# as the first command after opening the repo in the morning or resuming
+# work after a break.
+#
+# Each check is :
+#   ✅ green   — keep going
+#   ⚠️  amber   — actionable but not blocking
+#   ❌ red     — fix before pushing
+#
+# Usage :
+#   bin/dev/mirador-doctor
+#   bin/dev/mirador-doctor --fast        # skip pytest + pip-audit (the slow ones)
+#   bin/dev/mirador-doctor --no-network  # skip pip-audit (which queries PyPI)
+# =============================================================================
+
+set -u
+
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+FAST=0
+NO_NETWORK=0
+for arg in "$@"; do
+    case "$arg" in
+        --fast) FAST=1 ;;
+        --no-network) NO_NETWORK=1 ;;
+    esac
+done
+
+# ── Colors ───────────────────────────────────────────────────────────────────
+G='\033[32m'; Y='\033[33m'; R='\033[31m'; B='\033[34m'; N='\033[0m'
+ok()   { printf "  ${G}OK${N} %s\n" "$1"; }
+warn() { printf "  ${Y}WARN${N} %s\n" "$1"; }
+bad()  { printf "  ${R}FAIL${N} %s\n" "$1"; FAILS=$((FAILS + 1)); }
+info() { printf "  ${B}INFO${N} %s\n" "$1"; }
+
+FAILS=0
+cd "$REPO_ROOT"
+
+echo "mirador-doctor (python) — $(date +'%H:%M:%S')"
+echo "    repo: $REPO_ROOT"
+echo
+
+# ── Section 1 : tooling ──────────────────────────────────────────────────────
+echo "── Tooling ──"
+if command -v uv >/dev/null 2>&1; then
+    ok "uv $(uv --version | awk '{print $2}')"
+else
+    bad "uv not installed (brew install uv)"
+fi
+
+PY_VER=$(uv run python --version 2>/dev/null | awk '{print $2}' || echo "?")
+case "$PY_VER" in
+    3.14.*) ok "Python $PY_VER (matches pyproject requires-python)" ;;
+    ?*)     warn "Python $PY_VER (project expects 3.14.x — uv will manage on next sync)" ;;
+    *)      bad "Python not resolvable via uv" ;;
+esac
+
+if command -v lefthook >/dev/null 2>&1 && [ -f .git/hooks/pre-push ]; then
+    ok "lefthook hooks installed"
+else
+    warn "lefthook hooks missing (LEFTHOOK_CONFIG=.config/lefthook.yml lefthook install)"
+fi
+
+if command -v sloth >/dev/null 2>&1; then
+    ok "sloth installed — SLO YAML to Prometheus rules"
+else
+    info "sloth not installed (optional ; brew install sloth — needed to regenerate SLO rules)"
+fi
+echo
+
+# ── Section 2 : repo state ───────────────────────────────────────────────────
+echo "── Repo state ──"
+BRANCH=$(git branch --show-current 2>/dev/null)
+if [ "$BRANCH" = "dev" ] || [ "$BRANCH" = "main" ]; then
+    ok "branch=$BRANCH"
+else
+    warn "branch=$BRANCH (working off dev is the convention)"
+fi
+
+DIRTY=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+if [ "$DIRTY" = "0" ]; then
+    ok "working tree clean"
+else
+    info "$DIRTY uncommitted file(s)"
+fi
+
+if git -C infra/shared rev-parse HEAD >/dev/null 2>&1; then
+    SHARED_SHA=$(git -C infra/shared rev-parse --short HEAD)
+    ok "infra/shared submodule pinned at $SHARED_SHA"
+else
+    bad "infra/shared submodule not initialised (git submodule update --init)"
+fi
+echo
+
+# ── Section 3 : code quality ─────────────────────────────────────────────────
+echo "── Code quality ──"
+if uv run ruff check . --quiet >/dev/null 2>&1; then
+    ok "ruff check clean"
+else
+    bad "ruff check FAILED — run 'uv run ruff check .' to see"
+fi
+
+if uv run ruff format --check . >/dev/null 2>&1; then
+    ok "ruff format clean"
+else
+    warn "ruff format would reformat — run 'uv run ruff format .'"
+fi
+
+if uv run mypy src --no-error-summary >/dev/null 2>&1; then
+    ok "mypy strict passes"
+else
+    bad "mypy strict FAILED — run 'uv run mypy src' to see"
+fi
+
+if uv run lint-imports --config .importlinter --no-cache 2>/dev/null | grep -q "Contracts: 4 kept, 0 broken"; then
+    ok "import-linter : 4 contracts kept, 0 broken"
+else
+    bad "import-linter contracts BROKEN — run 'uv run lint-imports --config .importlinter'"
+fi
+echo
+
+# ── Section 4 : tests + coverage ─────────────────────────────────────────────
+if [ "$FAST" = "1" ]; then
+    echo "── Tests + coverage [SKIPPED --fast] ──"
+else
+    echo "── Tests + coverage ──"
+    if uv run pytest tests/unit -q --no-cov-on-fail 2>&1 | tail -3 | grep -qE "[0-9]+ passed"; then
+        cov=$(uv run pytest tests/unit -q 2>&1 | grep -oE "Total coverage: [0-9.]+%" | awk '{print $3}')
+        if [ -n "$cov" ]; then
+            ok "pytest 127+ passed, coverage $cov"
+        else
+            ok "pytest passed"
+        fi
+    else
+        bad "pytest FAILED — run 'uv run pytest tests/unit' to see"
+    fi
+    echo
+fi
+
+# ── Section 5 : security ─────────────────────────────────────────────────────
+if [ "$FAST" = "1" ] || [ "$NO_NETWORK" = "1" ]; then
+    echo "── Security [SKIPPED] ──"
+else
+    echo "── Security ──"
+    if uv run pip-audit --ignore-vuln CVE-2026-3219 2>&1 | grep -q "No known vulnerabilities found"; then
+        ok "pip-audit : no new CVEs (CVE-2026-3219 ignored — pip bundled, no upstream fix)"
+    else
+        warn "pip-audit found new vulnerabilities — run 'uv run pip-audit'"
+    fi
+    echo
+fi
+
+# ── Summary ──────────────────────────────────────────────────────────────────
+if [ "$FAILS" = "0" ]; then
+    printf "${G}All checks passed.${N} Ready to push.\n"
+    exit 0
+else
+    printf "${R}%d check(s) failed.${N} Fix before pushing.\n" "$FAILS"
+    exit 1
+fi
