@@ -29,6 +29,7 @@ from mirador_service.messaging.kafka_client import start_kafka, stop_kafka
 from mirador_service.middleware.logging import configure_logging
 from mirador_service.middleware.setup import register_middleware
 from mirador_service.observability.otel import init_otel, shutdown_otel
+from mirador_service.order.order_line_router import router as order_line_router
 from mirador_service.order.router import router as order_router
 from mirador_service.product.router import router as product_router
 
@@ -95,6 +96,7 @@ def create_app() -> FastAPI:
     app.include_router(customer_router)
     app.include_router(product_router)
     app.include_router(order_router)
+    app.include_router(order_line_router)
     app.include_router(enrichment_router)
     app.include_router(audit_router)
     app.include_router(diagnostic_router)
