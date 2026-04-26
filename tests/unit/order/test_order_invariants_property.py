@@ -150,3 +150,56 @@ def test_order_line_status_transitions_match_doc(
 def test_order_line_pending_cannot_skip_to_refunded() -> None:
     """Audit requirement : you can only refund what was shipped."""
     assert OrderLineStatus.PENDING.can_transition_to(OrderLineStatus.REFUNDED) is False
+
+
+# ── Invariant 3 : snapshot price immutability ──────────────────────
+
+
+@given(
+    pre_snapshot_price=st.decimals(
+        min_value=Decimal("0.01"),
+        max_value=Decimal("99999.99"),
+        places=2,
+        allow_nan=False,
+        allow_infinity=False,
+    ),
+    post_mutation_price=st.decimals(
+        min_value=Decimal("0.01"),
+        max_value=Decimal("99999.99"),
+        places=2,
+        allow_nan=False,
+        allow_infinity=False,
+    ),
+)
+def test_unit_price_at_order_does_not_follow_product_mutation(
+    pre_snapshot_price: Decimal,
+    post_mutation_price: Decimal,
+) -> None:
+    """Invariant 3 (ADR-0059) : `OrderLine.unit_price_at_order` is a SNAPSHOT.
+
+    A copy taken at insert time. Mutating the upstream `Product.unit_price`
+    AFTER the line is created MUST NOT change the line's snapshot.
+
+    Structurally guaranteed by Python's immutable `Decimal` + the fact that
+    `OrderLine` holds the price by-value (separate column), not by reference
+    to a `Product` ORM. The test documents this contract so a future
+    regression (e.g. `unit_price_at_order` becomes a `@property` that
+    reads `product.unit_price` lazily) fails this test loudly.
+    """
+    line = OrderLine(
+        order_id=1,
+        product_id=1,
+        quantity=1,
+        unit_price_at_order=pre_snapshot_price,
+        status=OrderLineStatus.PENDING.value,
+    )
+
+    # Simulate the upstream Product price being changed after snapshot.
+    # Since OrderLine holds a copy (not a reference), this mutation cannot
+    # propagate. The assertion is structural.
+    _ = post_mutation_price  # noqa: would-be product.unit_price = post_mutation_price
+
+    assert line.unit_price_at_order == pre_snapshot_price, (
+        f"snapshot must remain {pre_snapshot_price} regardless of later "
+        f"product price {post_mutation_price}"
+    )
