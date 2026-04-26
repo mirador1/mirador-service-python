@@ -53,6 +53,19 @@ for the 13-decision baseline + [SLO/SLA documentation](docs/slo/).
 - **pip-audit hard gate** : 3 CVEs caught + fixed during dev (pytest 9.0.3,
   fastapi 0.136.1, starlette 1.0.0).
 
+## What this proves for a senior backend architect
+
+| Concern | What this repo demonstrates | Why it matters in production |
+|---|---|---|
+| **Type discipline** | `mypy --strict` on 41 files ; PEP 695 `type` aliases ; `Final[T]` constants ; `Literal["access","refresh"]` for token-type narrowing ; 5 ADRs (0008-0012) document the discipline. | Python's runtime-only typing gets compile-time-equivalent guarantees ; refactors stay safe. |
+| **Async-first architecture** | Every I/O path is `async def` ; SQLAlchemy 2.x async + asyncpg + aiokafka + redis-py async + httpx.AsyncClient ; ContextVar correlation propagates across coroutines. (ADR-0008) | One event loop per worker handles 100s of concurrent requests vs ~10 on sync workers — same hardware, 10× throughput. |
+| **Test rigor** | 127 unit tests + 8 hypothesis property-based (found 2 real bugs during authoring) + 5 kafka_client integration tests via testcontainers + pytest-benchmark on hot paths (JWT 9µs, bcrypt 280ms). Coverage 90.21% with `--cov-fail-under=90` blocking gate. | Coverage isn't pretend — the gate fails CI ; property-based catches edge cases example-tests miss. |
+| **Architectural boundaries** | `import-linter` enforces 4 contracts : config-leaf, db↔kafka independence, integration adapters independence, observability-leaf. CI fails on violation. (ADR-0007 §5) | Python's import flexibility = drift risk ; tooling enforcement > reviewer goodwill. |
+| **Security supply chain** | JWT (pyjwt) + bcrypt 5.x rotation, **pip-audit hard gate** (3 CVEs caught during dev), gitleaks secret scan, dated `--ignore-vuln` exit-tickets, OWASP rules via ruff bandit. | Pinning is half — knowing when a pinned version becomes vulnerable is the other half. |
+| **Observability** | OTel SDK → Collector → LGTM ; structlog JSON logs ; starlette-prometheus metrics ; **3 SLOs as code via Sloth** with multi-window multi-burn-rate alerting (Google SRE Workbook). (ADR-0012) | "Are we within contract this month ?" is an objective question with a Grafana dashboard. |
+| **Tooling modernization** | `uv` replaces pip + setuptools + virtualenv + pyenv (5-10× faster, cross-platform lockfile). PEP 695 type syntax. (ADR-0009) | Stays on the bleeding edge of Python tooling ; demonstrates ability to evaluate + adopt new ecosystem leaders. |
+| **Java parity** | Same 3 SLOs, same Kafka contract, same security baseline as the Java sibling. Shared submodule (`mirador-service-shared`) enforces the common floor. | Demonstrates ability to keep multiple stack implementations consistent without monorepo lock-in. |
+
 ## Tech stack
 
 | Layer | Technology | Mirrors Java's |
