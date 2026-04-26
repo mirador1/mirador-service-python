@@ -99,82 +99,35 @@ Captured from portfolio review session feedback :
   new README structure (TL;DR + senior architect matrix). Currently shows
   old "Customer service demo" framing.
 
-## 🎯 Augmenter la surface fonctionnelle — nouvelles entités
+## 🎯 Surface fonctionnelle — entités e-commerce
 
-**🚩 État au flush 2026-04-26 12:14** : work pas encore démarré en
-Python. Bloqué sur clarification utilisateur côté Java (voir
-[Java TASKS.md](https://gitlab.com/mirador1/mirador-service-java/-/blob/main/TASKS.md)
-"Awaiting clarification" — l'utilisateur a interrompu le foundation
-Java et il faut confirmer le scope avant de redémarrer en parallèle).
+Foundation **shippée 2026-04-26** dans [stable-py-v0.6.4](https://gitlab.com/mirador1/mirador-service-python/-/tags/stable-py-v0.6.4) :
+- ✅ Alembic 0002 (`product`), 0003 (`orders`), 0004 (`order_line`) + ORM SQLAlchemy 2.x async
+- ✅ Pydantic v2 schemas + FastAPI routers (`/products`, `/orders`, `/orders/{id}/lines/{lineId}`)
+- ✅ Feature-sliced `src/mirador_service/{order,product}/` + import-linter contracts (ADR-0007)
+- ✅ 12 product router tests + workaround SQLAlchemy 2.0.36 + Python 3.14 union bug
 
-☐ Mirror les 3 nouvelles entités côté Python (parité OpenAPI obligatoire
-avec Java — l'UI doit pouvoir basculer entre les 2 backends transparently).
+### Reste à compléter (post-foundation)
 
-**Scope final (validé utilisateur 2026-04-26)** : Pattern A simplifié —
-`Customer` existant reste tel quel (porte l'auth/identité), 3 nouvelles
-entités e-commerce :
+- ✅ **ADR data model** — landed 2026-04-26 in shared as
+  [shared ADR-0059](https://gitlab.com/mirador1/mirador-service-shared/-/blob/main/docs/adr/0059-customer-order-product-data-model.md)
+  (cross-language : Java + Python + UI). Documents 6 invariants for Hypothesis property tests.
+- ☐ **Coverage ≥ 90 %** sur `src/mirador_service/{order,product}/` —
+  cf. ADR-0014. Si manque, combler avec property tests Hypothesis.
+- ☐ **Property-based tests Hypothesis** (cf. ADR-0011 §"Where to use") :
+  `total_amount == sum(l.quantity * l.unit_price_at_order for l in lines)`,
+  `stock_quantity ≥ 0`, immutabilité `unit_price_at_order`,
+  transitions `Order.status` valides.
+- ☐ **pytest-asyncio integration tests** (`tests/integration/`) :
+  full HTTP roundtrip via `httpx.AsyncClient` + Postgres testcontainer ;
+  POST /orders avec 2 OrderLines + assert total recalculé ; DELETE /orders/{id}
+  cascade sur OrderLines.
+- ☐ **`stability-check.sh` section 3** doit afficher 🟢 sur le nouveau code.
+- ☐ **`bin/dev/api-smoke.sh`** : ajouter POST /orders avec 2 OrderLines,
+  GET, DELETE, vérifier total.
 
-- **`Order`** — entité principale, FK `customer_id` → `Customer` existant,
-  statut (PENDING / CONFIRMED / SHIPPED / CANCELLED), `total_amount` calculé.
-- **`Product`** — `name`, `description`, `unit_price`, `stock_quantity`.
-- **`OrderLine`** — entité (PAS un join pur — carries quantité + prix
-  snapshot + statut individuel + cycle de vie). Relation Order ↔ Product
-  avec : `quantity`, `unit_price_at_order` (immutable, snapshot pour
-  audit), statut individuel (PENDING / SHIPPED / REFUNDED).
+### Cross-repo coordination (ADR-0001 polyrepo)
 
-### Acceptance criteria
-
-#### Code & schéma
-
-- [ ] Modèles SQLAlchemy 2.x async (`src/mirador_service/{order,product}/models.py`,
-      feature-sliced + import-linter contracts respected per ADR-0007)
-- [ ] Migrations (suivre le pattern Alembic existant pour `Customer`)
-- [ ] Pydantic v2 schemas request / response (avec strict mode)
-- [ ] FastAPI endpoints : full CRUD (`/orders`, `/products`,
-      `/orders/{id}/lines/{lineId}`) avec OpenAPI auto-spec
-- [ ] ADR documentant le modèle de données + relations (justifie OrderLine
-      comme entité plutôt que join pur)
-
-#### Tests (cf. ADR-0014 coverage strategy + ADR-0011 property-based)
-
-- [ ] **pytest unit tests** (`tests/unit/{order,product}/`) : ≥ 1 test par
-      fonction publique, AAA pattern, edge cases (None, listes vides,
-      bornes des integers).
-- [ ] **pytest-asyncio integration tests** (`tests/integration/`) :
-      full HTTP roundtrip via httpx.AsyncClient + Postgres testcontainer.
-      Cover : POST /orders avec 2 OrderLines → assert total recalculé,
-      DELETE /orders/{id} → cascade sur OrderLines.
-- [ ] **Property-based tests Hypothesis** :
-      `total_amount == sum(l.quantity * l.unit_price_at_order for l in lines)`,
-      stock_quantity ≥ 0, OrderLine.unit_price_at_order immutability,
-      Order.status transitions valides (PENDING → CONFIRMED → SHIPPED).
-      Patterns dans ADR-0014 §"Where to use".
-- [ ] **mutmut sur les modules crypto-touching** : non requis pour
-      Order/Product/OrderLine (pas de crypto), mais activer si un
-      `signature_hash` est ajouté plus tard à OrderLine pour audit.
-
-#### Couverture (gate explicite)
-
-- [ ] **Coverage ≥ 90 %** sur le nouveau code (lignes + branches),
-      mesuré par `pytest --cov=src/mirador_service/order --cov=src/mirador_service/product`.
-      Si < 90 %, ajouter property tests pour combler (Hypothesis
-      explore plus de chemins par test).
-- [ ] **Coverage report term + HTML** dans `htmlcov/` (gitignored).
-- [ ] **stability-check.sh section 3** doit afficher 🟢 sur le nouveau code
-      (cf. ADR-0013 6-section design).
-
-#### Update outils
-
-- [ ] Update `bin/dev/api-smoke.sh` avec les nouveaux endpoints
-      (POST /orders avec 2 OrderLines, GET, DELETE, vérifier le total)
-- [ ] Update `bin/dev/healthcheck-all.sh` si nouveaux services
-      backing-services requis (probablement non — Postgres existant suffit)
-- [ ] CHANGELOG entry au prochain `stable-py-vX.Y.Z`
-
-### Cross-repo coordination (cf. common ADR-0001 polyrepo)
-
-OpenAPI contract DOIT correspondre exactement à
-[Java's](https://gitlab.com/mirador1/mirador-service-java/-/blob/main/TASKS.md)
-(même paths, même schemas, même response codes). UI doit pouvoir basculer
-entre backends transparently. Acceptance partielle si l'un des 3 repos
-n'a pas livré.
+OpenAPI contract aligné avec [Java](https://gitlab.com/mirador1/mirador-service-java)
+— UI ([mirador-ui](https://gitlab.com/mirador1/mirador-ui)) bascule transparemment
+entre les 2 backends.
