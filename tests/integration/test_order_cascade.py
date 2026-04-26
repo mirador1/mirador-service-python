@@ -88,9 +88,7 @@ async def test_deleting_order_cascades_lines_keeps_product(
 
     # Post-conditions
     assert await postgres_session.get(Order, order_id) is None, "order removed"
-    assert await postgres_session.get(OrderLine, line_id) is None, (
-        "line cascade-removed via FK ON DELETE CASCADE"
-    )
+    assert await postgres_session.get(OrderLine, line_id) is None, "line cascade-removed via FK ON DELETE CASCADE"
     assert await postgres_session.get(Product, product_id) is not None, (
         "product NOT touched — FK RESTRICT side preserved"
     )
