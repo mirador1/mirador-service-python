@@ -144,6 +144,58 @@ async def test_delete_404_when_missing(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_update_returns_200_with_new_fields(client: AsyncClient) -> None:
+    """PUT /products/{id} replaces fields and returns 200 with updated DTO."""
+    created = await client.post(
+        "/products",
+        json={"name": "Original", "unit_price": "10.00", "stock_quantity": 5},
+    )
+    pid = created.json()["id"]
+
+    response = await client.put(
+        f"/products/{pid}",
+        json={
+            "name": "Updated",
+            "description": "now with desc",
+            "unit_price": "20.00",
+            "stock_quantity": 10,
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] == pid
+    assert body["name"] == "Updated"
+    assert body["description"] == "now with desc"
+    assert body["unit_price"] == "20.00"
+    assert body["stock_quantity"] == 10
+
+
+@pytest.mark.asyncio
+async def test_update_404_when_missing(client: AsyncClient) -> None:
+    """PUT on non-existent id returns 404 (no implicit upsert — matches Java)."""
+    response = await client.put(
+        "/products/99999",
+        json={"name": "Ghost", "unit_price": "1.00", "stock_quantity": 0},
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_validates_negative_stock(client: AsyncClient) -> None:
+    """PUT with negative stock returns 422 from Pydantic validation."""
+    created = await client.post(
+        "/products",
+        json={"name": "Existing", "unit_price": "5.00", "stock_quantity": 1},
+    )
+    pid = created.json()["id"]
+    response = await client.put(
+        f"/products/{pid}",
+        json={"name": "X", "unit_price": "5.00", "stock_quantity": -1},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_pagination(client: AsyncClient) -> None:
     """Create 5 products, request page 0 size 2, expect 2 items + total=5."""
     for i in range(5):
