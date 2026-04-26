@@ -50,7 +50,7 @@ order_lines = st.lists(order_line, min_size=0, max_size=20)
 
 @given(order_lines)
 def test_total_equals_sum_of_lines(lines: list[OrderLine]) -> None:
-    """Invariant 1 : total == Σ(qty × unit_price_at_order).
+    """Invariant 1 : total == sum(qty * unit_price_at_order).
 
     The production helper `compute_total` MUST agree with an independent
     recomputation. Diverging implementations would be caught here.
@@ -115,7 +115,7 @@ def _is_valid_order_transition(src: OrderStatus, dst: OrderStatus) -> bool:
 def test_order_status_transitions_match_doc(src: OrderStatus, dst: OrderStatus) -> None:
     """Invariant 4 (ADR-0059) : Order status transition graph matches doc.
 
-    Hypothesis enumerates the 4×4 = 16 (src, dst) pairs ; each must produce
+    Hypothesis enumerates the 4x4 = 16 (src, dst) pairs ; each must produce
     the answer from the independent reference. Any drift between the
     production code and the documented graph fails this test."""
     expected = _is_valid_order_transition(src, dst)
@@ -142,7 +142,7 @@ def _is_valid_line_transition(src: OrderLineStatus, dst: OrderLineStatus) -> boo
 def test_order_line_status_transitions_match_doc(
     src: OrderLineStatus, dst: OrderLineStatus
 ) -> None:
-    """Invariant 5 (ADR-0059) : OrderLine status transition graph (3×3 = 9)."""
+    """Invariant 5 (ADR-0059) : OrderLine status transition graph (3x3 = 9)."""
     expected = _is_valid_line_transition(src, dst)
     assert src.can_transition_to(dst) is expected, f"{src} → {dst} expected={expected}"
 
@@ -197,7 +197,9 @@ def test_unit_price_at_order_does_not_follow_product_mutation(
     # Simulate the upstream Product price being changed after snapshot.
     # Since OrderLine holds a copy (not a reference), this mutation cannot
     # propagate. The assertion is structural.
-    _ = post_mutation_price  # noqa: would-be product.unit_price = post_mutation_price
+    # post_mutation_price is intentionally not applied to a Product —
+    # the test is structural (OrderLine holds price by-value, no reference).
+    _ = post_mutation_price
 
     assert line.unit_price_at_order == pre_snapshot_price, (
         f"snapshot must remain {pre_snapshot_price} regardless of later "
