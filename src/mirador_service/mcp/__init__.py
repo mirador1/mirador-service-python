@@ -18,9 +18,9 @@ Public entry point : :func:`mount_mcp_server` in :mod:`.mount`.
 
 from __future__ import annotations
 
-__all__: list[str] = []
+# Re-exported here so external callers can write
+# ``from mirador_service.mcp import mount_mcp_server``. The actual
+# implementation lives in :mod:`mirador_service.mcp.mount`.
+from mirador_service.mcp.mount import mount_mcp_server
 
-# Re-exports added in :mod:`mirador_service.mcp.mount` once the module
-# lands ; keeping this file intentionally empty until then so the package
-# is importable in isolation (matters for unit tests of dtos / ring_buffer
-# / metrics_registry / actuator that don't need the full mounting wiring).
+__all__ = ["mount_mcp_server"]
