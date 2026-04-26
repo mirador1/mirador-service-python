@@ -101,46 +101,74 @@ Captured from portfolio review session feedback :
 
 ## 🎯 Augmenter la surface fonctionnelle — nouvelles entités
 
-☐ Mirror les nouvelles entités côté Python (parité OpenAPI obligatoire
+☐ Mirror les 3 nouvelles entités côté Python (parité OpenAPI obligatoire
 avec Java — l'UI doit pouvoir basculer entre les 2 backends transparently).
 
-**Scope final (validé utilisateur 2026-04-26)** : Pattern A (e-commerce) +
-relation `User` extraite du Pattern B (SaaS rôles) :
+**Scope final (validé utilisateur 2026-04-26)** : Pattern A simplifié —
+`Customer` existant reste tel quel (porte l'auth/identité), 3 nouvelles
+entités e-commerce :
 
-- **`User`** — identité auth avec rôles (USER / ADMIN / MANAGER), `email`,
-  `password_hash` (à factoriser avec l'auth JWT existante côté Customer
-  si applicable). Linked to `Customer` via `customer_id` (le user
-  représente un opérateur attaché à un Customer).
-- **`Order`** — entité principale, DEUX FKs :
-  - `customer_id` → `Customer` existant (le buyer / owner de la commande)
-  - `created_by_user_id` → `User` (l'opérateur qui a créé la commande)
-  - statut (PENDING / CONFIRMED / SHIPPED / CANCELLED), `total_amount` calculé
-- **`Product`** — `name`, `description`, `unit_price`, `stock_quantity`
-- **`OrderLine`** — jonction Order ↔ Product : `quantity`,
-  `unit_price_at_order` (immutable, snapshot du prix au moment de la commande)
+- **`Order`** — entité principale, FK `customer_id` → `Customer` existant,
+  statut (PENDING / CONFIRMED / SHIPPED / CANCELLED), `total_amount` calculé.
+- **`Product`** — `name`, `description`, `unit_price`, `stock_quantity`.
+- **`OrderLine`** — entité (PAS un join pur — carries quantité + prix
+  snapshot + statut individuel + cycle de vie). Relation Order ↔ Product
+  avec : `quantity`, `unit_price_at_order` (immutable, snapshot pour
+  audit), statut individuel (PENDING / SHIPPED / REFUNDED).
 
 ### Acceptance criteria
 
-- [ ] Modèles SQLAlchemy 2.x async (`src/mirador_service/{user,order,product}/models.py`,
-      feature-sliced)
+#### Code & schéma
+
+- [ ] Modèles SQLAlchemy 2.x async (`src/mirador_service/{order,product}/models.py`,
+      feature-sliced + import-linter contracts respected per ADR-0007)
 - [ ] Migrations (suivre le pattern Alembic existant pour `Customer`)
-- [ ] Pydantic v2 schemas request / response avec validation des rôles
-      (`Literal['USER', 'ADMIN', 'MANAGER']`)
-- [ ] FastAPI endpoints : full CRUD (`/users`, `/orders`, `/products`,
-      `/orders/{id}/lines`) avec OpenAPI auto-spec
-- [ ] **Auth refactor si applicable** : si `Customer` portait l'auth JWT,
-      la déplacer vers `User` (rôles). Sinon ajouter le mécanisme.
-- [ ] Coverage ≥ 90 % (cf. [ADR-0014](docs/adr/0014-coverage-floor-and-property-based-testing.md))
-- [ ] Property tests Hypothesis sur invariants (total = Σ lignes, stock ≥ 0,
-      OrderLine immutability, role transitions valides)
-- [ ] Integration tests (Postgres async + redis ring buffer si applicable)
+- [ ] Pydantic v2 schemas request / response (avec strict mode)
+- [ ] FastAPI endpoints : full CRUD (`/orders`, `/products`,
+      `/orders/{id}/lines/{lineId}`) avec OpenAPI auto-spec
+- [ ] ADR documentant le modèle de données + relations (justifie OrderLine
+      comme entité plutôt que join pur)
+
+#### Tests (cf. ADR-0014 coverage strategy + ADR-0011 property-based)
+
+- [ ] **pytest unit tests** (`tests/unit/{order,product}/`) : ≥ 1 test par
+      fonction publique, AAA pattern, edge cases (None, listes vides,
+      bornes des integers).
+- [ ] **pytest-asyncio integration tests** (`tests/integration/`) :
+      full HTTP roundtrip via httpx.AsyncClient + Postgres testcontainer.
+      Cover : POST /orders avec 2 OrderLines → assert total recalculé,
+      DELETE /orders/{id} → cascade sur OrderLines.
+- [ ] **Property-based tests Hypothesis** :
+      `total_amount == sum(l.quantity * l.unit_price_at_order for l in lines)`,
+      stock_quantity ≥ 0, OrderLine.unit_price_at_order immutability,
+      Order.status transitions valides (PENDING → CONFIRMED → SHIPPED).
+      Patterns dans ADR-0014 §"Where to use".
+- [ ] **mutmut sur les modules crypto-touching** : non requis pour
+      Order/Product/OrderLine (pas de crypto), mais activer si un
+      `signature_hash` est ajouté plus tard à OrderLine pour audit.
+
+#### Couverture (gate explicite)
+
+- [ ] **Coverage ≥ 90 %** sur le nouveau code (lignes + branches),
+      mesuré par `pytest --cov=src/mirador_service/order --cov=src/mirador_service/product`.
+      Si < 90 %, ajouter property tests pour combler (Hypothesis
+      explore plus de chemins par test).
+- [ ] **Coverage report term + HTML** dans `htmlcov/` (gitignored).
+- [ ] **stability-check.sh section 3** doit afficher 🟢 sur le nouveau code
+      (cf. ADR-0013 6-section design).
+
+#### Update outils
+
 - [ ] Update `bin/dev/api-smoke.sh` avec les nouveaux endpoints
+      (POST /orders avec 2 OrderLines, GET, DELETE, vérifier le total)
+- [ ] Update `bin/dev/healthcheck-all.sh` si nouveaux services
+      backing-services requis (probablement non — Postgres existant suffit)
 - [ ] CHANGELOG entry au prochain `stable-py-vX.Y.Z`
 
 ### Cross-repo coordination (cf. common ADR-0001 polyrepo)
 
 OpenAPI contract DOIT correspondre exactement à
 [Java's](https://gitlab.com/mirador1/mirador-service-java/-/blob/main/TASKS.md)
-(même paths, même schemas, même response codes, même auth flow). UI doit
-pouvoir basculer entre backends transparently. Acceptance partielle si
-l'un des 3 repos n'a pas livré.
+(même paths, même schemas, même response codes). UI doit pouvoir basculer
+entre backends transparently. Acceptance partielle si l'un des 3 repos
+n'a pas livré.
