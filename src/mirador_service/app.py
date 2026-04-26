@@ -23,6 +23,7 @@ from mirador_service.customer.audit_router import router as audit_router
 from mirador_service.customer.diagnostic_router import router as diagnostic_router
 from mirador_service.customer.enrichment_router import router as enrichment_router
 from mirador_service.customer.router import router as customer_router
+from mirador_service.product.router import router as product_router
 from mirador_service.db.base import reset_engine
 from mirador_service.integration.redis_client import close_redis
 from mirador_service.messaging.kafka_client import start_kafka, stop_kafka
@@ -91,6 +92,7 @@ def create_app() -> FastAPI:
     app.include_router(quality_router)
     app.include_router(auth_router)
     app.include_router(customer_router)
+    app.include_router(product_router)
     app.include_router(enrichment_router)
     app.include_router(audit_router)
     app.include_router(diagnostic_router)
