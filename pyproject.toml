@@ -54,6 +54,16 @@ dependencies = [
     "apscheduler>=3.11.2",
     "pyjwt>=2.12.1",
     "bcrypt>=4.0",
+    # Model Context Protocol — official Anthropic SDK. Bundles FastMCP
+    # (Pythonic decorator API) + streamable-http transport that mounts as a
+    # Starlette ASGI sub-app onto our FastAPI server (see ADR-0062 for the
+    # decision to expose @tool per-method on the service layer). The [cli]
+    # extra adds `uv run mcp` for inspector / dev-mode workflows.
+    "mcp[cli]>=1.27.0",
+    # In-process TTL cache — mirrors Spring's Caffeine. Used by
+    # MCP get_metrics tool (5s TTL) so an LLM that re-asks the same metric
+    # while reasoning doesn't re-walk the prometheus REGISTRY twice.
+    "cachetools>=5.5",
 ]
 
 [project.optional-dependencies]
