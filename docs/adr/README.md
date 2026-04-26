@@ -53,6 +53,8 @@ in CI).
 | 0010 | Accepted | [SQLAlchemy 2.x async over Tortoise / Beanie / SQLModel](0010-sqlalchemy-async-over-alternatives.md) |
 | 0011 | Accepted | [Hypothesis property-based testing on selected paths](0011-hypothesis-property-based-testing.md) |
 | 0012 | Accepted | [SLO/SLA-as-code via Sloth (Python side)](0012-slo-as-code-via-sloth.md) |
+| 0013 | Accepted | [`stability-check.sh` six-section progressive design](0013-stability-check-six-section-design.md) |
+| 0014 | Accepted | [Test coverage : 90 % floor + Hypothesis property tests on selected paths](0014-coverage-floor-and-property-based-testing.md) |
 <!-- ADR-INDEX:END -->
 
 ## Adding a new ADR

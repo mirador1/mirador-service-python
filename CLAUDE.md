@@ -40,6 +40,30 @@ NEVER reach for `allow_failure: true` as the fix. Pick (a) fix the root cause, (
 - **Never modify files outside this project** unless explicitly asked.
 - **Reference pipelines/MRs/files as clickable URLs.** When a status update or commit message mentions an MR, pipeline, tag, ADR or audit report, emit it as a markdown link (`[!62](https://gitlab.com/mirador1/mirador-service-python/-/merge_requests/62)`, `[#308](...)`, `[stable-v0.1.0](...)`, `[ADR](file:///<repo>/docs/adr/…md)`).
 
+## Submodule pattern (2-tier flat α — see common ADR-0060)
+
+This repo has **2 git submodules** (since 2026-04-26 split) :
+
+- `infra/common/` → [mirador-common](https://gitlab.com/mirador1/mirador-common) — universal cross-repo conventions (release scripts, ADR drift tooling, Conventional Commits CI template, Renovate base). Consumed by all 4 mirador1 repos including UI.
+- `infra/shared/` → [mirador-service-shared](https://gitlab.com/mirador1/mirador-service-shared) — backend infrastructure (clusters, terraform, K8s, OTel collector, postgres+kafka+redis dev stack, dashboards-lgtm, backend ADRs). Consumed by java + python only (NOT ui).
+
+**Pattern α (flat 2-submodule)** chosen over β for : independent SHA pinning per consumer, symmetric path everywhere (`infra/common/bin/...`), standard clone (no `--recursive`). Full rationale : [common ADR-0060](https://gitlab.com/mirador1/mirador-common/-/blob/main/docs/adr/0060-flat-vs-transitive-submodule-inheritance.md).
+
+**Where to find what** :
+- Universal scripts (pre-sync, changelog, gitlab-release, regen-adr-index) → `infra/common/bin/...`
+- Backend infra scripts (cluster lifecycle, budget, runner-healthcheck) → `infra/shared/bin/...`
+- Backend deploy manifests → `infra/shared/deploy/...`
+- Backend dev stack compose → `infra/shared/compose/dev-stack.yml`
+
+**Tag prefix for this repo** : `stable-py-v` (per [common ADR-0061](https://gitlab.com/mirador1/mirador-common/-/blob/main/docs/adr/0061-per-repo-tag-namespace-pattern.md) — Python uses prefix-disambiguated namespace from Java's `stable-v`). Run release scripts as : `infra/common/bin/ship/changelog.sh --tag-prefix stable-py-v`.
+
+**Clone instruction** :
+```bash
+git clone https://gitlab.com/mirador1/mirador-service-python.git
+cd mirador-service-python
+git submodule update --init   # 2 submodules, NO --recursive needed
+```
+
 ## Project overview
 
 Python 3.13 service mirroring `../mirador-service` (Java/Spring Boot 4) and

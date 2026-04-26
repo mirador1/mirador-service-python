@@ -159,16 +159,24 @@ else
 fi
 
 # ── 6. ADR drift ──
-# Calls the SHARED regenerator via the submodule (factored 2026-04-26 to avoid
-# duplicating universal scripts across 4 repos — see ADR-0001).
+# Calls the COMMON regenerator via the universal submodule (factored
+# 2026-04-26 into mirador-common per ADR-0001 + ADR-0060). Falls back
+# to the legacy infra/shared/bin/... path for the brief transition
+# window when this repo's submodule SHA hasn't been bumped yet.
 section "6. ADR drift"
-ADR_REGEN="infra/shared/bin/dev/regen-adr-index.sh"
+if [ -x "infra/common/bin/dev/regen-adr-index.sh" ]; then
+    ADR_REGEN="infra/common/bin/dev/regen-adr-index.sh"
+elif [ -x "infra/shared/bin/dev/regen-adr-index.sh" ]; then
+    ADR_REGEN="infra/shared/bin/dev/regen-adr-index.sh"
+else
+    ADR_REGEN=""
+fi
 if [ "$SKIP_ADR" = "1" ]; then
     info "skipped (--skip-adr)"
 elif [ ! -f docs/adr/README.md ]; then
     info "no docs/adr/README.md — skipping drift check"
-elif [ ! -x "$ADR_REGEN" ]; then
-    amber "shared regenerator missing ($ADR_REGEN) — bump submodule SHA"
+elif [ -z "$ADR_REGEN" ]; then
+    amber "regenerator missing in infra/common/ AND infra/shared/ — bump submodule SHA"
 elif "$ADR_REGEN" --check >/dev/null 2>&1; then
     green "ADR index in sync with docs/adr/*.md"
 else
