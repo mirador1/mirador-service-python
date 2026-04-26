@@ -1,7 +1,7 @@
 """Pure utility — compute Order total from its lines.
 
 Implements invariant 1 of shared ADR-0059 :
-    total_amount == Σ(line.quantity × line.unit_price_at_order)
+    total_amount == sum(line.quantity * line.unit_price_at_order)
 
 Side-effect-free, no DB, no session. Used by future router code that
 needs to recompute totals when lines are added/removed/cancelled.
@@ -16,7 +16,7 @@ from mirador_service.order.order_line_models import OrderLine
 
 
 def compute_total(lines: Iterable[OrderLine] | None) -> Decimal:
-    """Compute the order total as Σ(qty × unit_price_at_order).
+    """Compute the order total as sum(qty * unit_price_at_order).
 
     Args:
         lines: iterable of OrderLine instances. May be None or empty.
