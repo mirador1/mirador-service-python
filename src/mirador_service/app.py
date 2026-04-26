@@ -25,6 +25,7 @@ from mirador_service.customer.enrichment_router import router as enrichment_rout
 from mirador_service.customer.router import router as customer_router
 from mirador_service.db.base import reset_engine
 from mirador_service.integration.redis_client import close_redis
+from mirador_service.mcp.mount import mount_mcp_server
 from mirador_service.messaging.kafka_client import start_kafka, stop_kafka
 from mirador_service.middleware.logging import configure_logging
 from mirador_service.middleware.setup import register_middleware
@@ -100,6 +101,12 @@ def create_app() -> FastAPI:
     app.include_router(enrichment_router)
     app.include_router(audit_router)
     app.include_router(diagnostic_router)
+
+    # Mount the MCP streamable-http server at /mcp/. Done AFTER routers so
+    # the OpenAPI summary tool sees the full route catalogue, and BEFORE
+    # the lifespan kicks in so the FastMCP session manager is chained
+    # into the parent app's lifespan (see mcp/mount.py).
+    mount_mcp_server(app)
 
     @app.get("/", include_in_schema=False)
     async def root() -> dict[str, str]:
