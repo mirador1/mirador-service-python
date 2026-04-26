@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from sqlalchemy import Column, DateTime, Integer, Numeric, String, Text
+from sqlalchemy import DateTime, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from mirador_service.db.base import Base
@@ -35,7 +35,7 @@ class Product(Base):
     # Note : description is nullable but typed as Mapped[str] not Mapped[str | None]
     # because of a SQLAlchemy 2.0.36 + Python 3.14 incompat with Union types in
     # Mapped[]. Runtime allows None ; callers should treat as `str | None`.
-    description: Mapped[str] = mapped_column(Text, nullable=True)  # type: ignore[assignment]
+    description: Mapped[str] = mapped_column(Text, nullable=True)
     unit_price: Mapped[Decimal] = mapped_column(Numeric(precision=12, scale=2), nullable=False)
     stock_quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
