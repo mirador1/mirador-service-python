@@ -88,6 +88,52 @@ else
     FAIL=$((FAIL + 1))
 fi
 
+echo "── E-commerce surface (ADR-0059) — Product/Order/OrderLine ──"
+# Re-create a customer for the order FK (we deleted the previous one)
+CUST_RESP=$(curl -s -X POST "$BASE/customers" -H "content-type: application/json" \
+    -d '{"name":"ecom-test","email":"ecom@test.local"}' 2>/dev/null)
+CUST_ID=$(echo "$CUST_RESP" | /usr/bin/python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('id',''))" 2>/dev/null)
+
+# Create a product
+PROD_RESP=$(curl -s -X POST "$BASE/products" -H "content-type: application/json" \
+    -d "{\"name\":\"smoke-widget-$$\",\"description\":\"Smoke product\",\"unit_price\":\"10.00\",\"stock_quantity\":100}" 2>/dev/null)
+PROD_ID=$(echo "$PROD_RESP" | /usr/bin/python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('id',''))" 2>/dev/null)
+
+if [ -n "$CUST_ID" ] && [ -n "$PROD_ID" ]; then
+    printf "  ${GREEN}✓${NC} %-50s product=%s customer=%s\n" "create product + customer" "$PROD_ID" "$CUST_ID"
+    PASS=$((PASS + 1))
+
+    # Create order
+    ORD_RESP=$(curl -s -X POST "$BASE/orders" -H "content-type: application/json" \
+        -d "{\"customer_id\":$CUST_ID}" 2>/dev/null)
+    ORD_ID=$(echo "$ORD_RESP" | /usr/bin/python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('id',''))" 2>/dev/null)
+
+    if [ -n "$ORD_ID" ]; then
+        printf "  ${GREEN}✓${NC} %-50s order=%s\n" "create order" "$ORD_ID"
+        PASS=$((PASS + 1))
+        # Add 2 lines (qty 2 each → backend snapshots 10.00 → total 40.00)
+        curl -s -X POST "$BASE/orders/$ORD_ID/lines" -H "content-type: application/json" \
+            -d "{\"product_id\":$PROD_ID,\"quantity\":2}" >/dev/null 2>&1
+        curl -s -X POST "$BASE/orders/$ORD_ID/lines" -H "content-type: application/json" \
+            -d "{\"product_id\":$PROD_ID,\"quantity\":2}" >/dev/null 2>&1
+        # Verify total recomputed
+        TOT=$(curl -s "$BASE/orders/$ORD_ID" | /usr/bin/python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('total_amount',''))" 2>/dev/null)
+        if [ "$TOT" = "40.00" ]; then
+            printf "  ${GREEN}✓${NC} %-50s total=%s\n" "total recomputed (2 lines × 2 × 10.00)" "$TOT"
+            PASS=$((PASS + 1))
+        else
+            printf "  ${RED}✗${NC} %-50s total=%s (expected 40.00)\n" "total recomputed" "$TOT"
+            FAIL=$((FAIL + 1))
+        fi
+        # DELETE order cascades lines
+        probe "delete order (cascade lines)" DELETE /orders/$ORD_ID 204
+    fi
+
+    # Cleanup product + customer
+    probe "delete product"          DELETE /products/$PROD_ID  204
+    probe "delete customer"         DELETE /customers/$CUST_ID 204
+fi
+
 echo
 if [ "$FAIL" = "0" ]; then
     printf "${GREEN}All %d checks passed.${NC}\n" "$PASS"
