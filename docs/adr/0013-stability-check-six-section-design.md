@@ -134,7 +134,7 @@ shell-script layer.
 
 ## References
 
-- [Python stability-check.sh source](../../bin/dev/stability-check.sh)
+- [Python stability-check.sh source](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/bin/dev/stability-check.sh)
 - [Java's stability-check.sh + sections](https://gitlab.com/mirador1/mirador-service-java/-/tree/main/bin/dev) — different design, same goal
 - [common ADR-0001 — submodule pattern](https://gitlab.com/mirador1/mirador-common/-/blob/main/docs/adr/0001-shared-repo-via-submodule.md)
 - [ADR-0014](0014-coverage-floor-and-property-based-testing.md) — the coverage threshold this script enforces

@@ -157,9 +157,9 @@ interactions (e.g. multi-step workflows) — not yet.
 
 ## References
 
-- [`pyproject.toml`](../../pyproject.toml) `[tool.pytest.ini_options]` + `[tool.coverage.report]`
-- [`tests/unit/test_jwt_roundtrip.py`](../../tests/unit/test_jwt_roundtrip.py) — example of `@given(payload=...)` use
-- [`bin/dev/stability-check.sh`](../../bin/dev/stability-check.sh) section 3 — coverage gate
+- [`pyproject.toml`](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/pyproject.toml) `[tool.pytest.ini_options]` + `[tool.coverage.report]`
+- [`tests/unit/test_jwt_roundtrip.py`](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/tests/unit/test_jwt_roundtrip.py) — example of `@given(payload=...)` use
+- [`bin/dev/stability-check.sh`](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/bin/dev/stability-check.sh) section 3 — coverage gate
 - [ADR-0011 — Hypothesis property-based testing](0011-hypothesis-property-based-testing.md) — the foundational decision
 - [ADR-0013 — stability-check 6-section design](0013-stability-check-six-section-design.md) — the script that enforces this
 - [ADR-0007 — Industrial Python best practices](0007-industrial-python-best-practices.md) — broader quality bar

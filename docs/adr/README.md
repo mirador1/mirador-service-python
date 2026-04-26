@@ -33,7 +33,7 @@ base preset), see the shared submodule's
 ## Flat index
 
 The table below is **auto-regenerated** by
-[`bin/dev/regen-adr-index.sh`](../../bin/dev/regen-adr-index.sh).
+[`bin/dev/regen-adr-index.sh`](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/bin/dev/regen-adr-index.sh).
 Do not edit between the markers — run the script after adding /
 modifying an ADR (the `stability-check.sh` preflight catches drift
 in CI).
@@ -72,6 +72,6 @@ in CI).
 
 ## See also
 
-- [`../../bin/dev/regen-adr-index.sh`](../../bin/dev/regen-adr-index.sh) — regenerator
-- [`../../bin/dev/stability-check.sh`](../../bin/dev/stability-check.sh) — preflight (catches drift)
+- [`https://gitlab.com/mirador1/mirador-service-python/-/blob/main/bin/dev/regen-adr-index.sh`](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/bin/dev/regen-adr-index.sh) — regenerator
+- [`https://gitlab.com/mirador1/mirador-service-python/-/blob/main/bin/dev/stability-check.sh`](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/bin/dev/stability-check.sh) — preflight (catches drift)
 - [shared/docs/adr/](../../infra/shared/docs/adr/) — cross-cutting ADRs
