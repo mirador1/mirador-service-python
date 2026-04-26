@@ -98,3 +98,49 @@ Captured from portfolio review session feedback :
 - 🟢 **mkdocs landing page refresh** : `docs/index.md` should mirror the
   new README structure (TL;DR + senior architect matrix). Currently shows
   old "Customer service demo" framing.
+
+## 🎯 Augmenter la surface fonctionnelle — nouvelles entités
+
+☐ Mirror les nouvelles entités côté Python (parité OpenAPI obligatoire
+avec Java — l'UI doit pouvoir basculer entre les 2 backends transparently).
+
+**Scope final (validé utilisateur 2026-04-26)** : Pattern A (e-commerce) +
+relation `User` extraite du Pattern B (SaaS rôles) :
+
+- **`User`** — identité auth avec rôles (USER / ADMIN / MANAGER), `email`,
+  `password_hash` (à factoriser avec l'auth JWT existante côté Customer
+  si applicable). Linked to `Customer` via `customer_id` (le user
+  représente un opérateur attaché à un Customer).
+- **`Order`** — entité principale, DEUX FKs :
+  - `customer_id` → `Customer` existant (le buyer / owner de la commande)
+  - `created_by_user_id` → `User` (l'opérateur qui a créé la commande)
+  - statut (PENDING / CONFIRMED / SHIPPED / CANCELLED), `total_amount` calculé
+- **`Product`** — `name`, `description`, `unit_price`, `stock_quantity`
+- **`OrderLine`** — jonction Order ↔ Product : `quantity`,
+  `unit_price_at_order` (immutable, snapshot du prix au moment de la commande)
+
+### Acceptance criteria
+
+- [ ] Modèles SQLAlchemy 2.x async (`src/mirador_service/{user,order,product}/models.py`,
+      feature-sliced)
+- [ ] Migrations (suivre le pattern Alembic existant pour `Customer`)
+- [ ] Pydantic v2 schemas request / response avec validation des rôles
+      (`Literal['USER', 'ADMIN', 'MANAGER']`)
+- [ ] FastAPI endpoints : full CRUD (`/users`, `/orders`, `/products`,
+      `/orders/{id}/lines`) avec OpenAPI auto-spec
+- [ ] **Auth refactor si applicable** : si `Customer` portait l'auth JWT,
+      la déplacer vers `User` (rôles). Sinon ajouter le mécanisme.
+- [ ] Coverage ≥ 90 % (cf. [ADR-0014](docs/adr/0014-coverage-floor-and-property-based-testing.md))
+- [ ] Property tests Hypothesis sur invariants (total = Σ lignes, stock ≥ 0,
+      OrderLine immutability, role transitions valides)
+- [ ] Integration tests (Postgres async + redis ring buffer si applicable)
+- [ ] Update `bin/dev/api-smoke.sh` avec les nouveaux endpoints
+- [ ] CHANGELOG entry au prochain `stable-py-vX.Y.Z`
+
+### Cross-repo coordination (cf. common ADR-0001 polyrepo)
+
+OpenAPI contract DOIT correspondre exactement à
+[Java's](https://gitlab.com/mirador1/mirador-service-java/-/blob/main/TASKS.md)
+(même paths, même schemas, même response codes, même auth flow). UI doit
+pouvoir basculer entre backends transparently. Acceptance partielle si
+l'un des 3 repos n'a pas livré.
