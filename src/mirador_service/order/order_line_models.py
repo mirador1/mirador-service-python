@@ -23,6 +23,25 @@ class OrderLineStatus(StrEnum):
     SHIPPED = "SHIPPED"
     REFUNDED = "REFUNDED"
 
+    def can_transition_to(self, target: OrderLineStatus | None) -> bool:
+        """Pure state-machine check — is the transition self → target allowed ?
+
+        Per shared ADR-0059, valid graph : PENDING → SHIPPED → REFUNDED.
+        No skip (cannot REFUND a PENDING line — must SHIP first ; audit
+        requirement). Self-transitions allowed. REFUNDED is terminal.
+        """
+        if target is None:
+            return False
+        if self == target:
+            return True
+        match self:
+            case OrderLineStatus.PENDING:
+                return target == OrderLineStatus.SHIPPED
+            case OrderLineStatus.SHIPPED:
+                return target == OrderLineStatus.REFUNDED
+            case OrderLineStatus.REFUNDED:
+                return False
+
 
 class OrderLine(Base):
     """`order_line` table."""

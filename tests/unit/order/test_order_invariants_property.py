@@ -92,3 +92,61 @@ def test_total_linear_in_quantity(lines: list[OrderLine]) -> None:
         line.quantity = line.quantity * 2
     doubled_total = compute_total(lines)
     assert doubled_total == original_total * 2
+
+
+# ── Invariants 4 & 5 : status transitions ──────────────────────────
+
+
+from mirador_service.order.models import OrderStatus  # noqa: E402
+
+
+def _is_valid_order_transition(src: OrderStatus, dst: OrderStatus) -> bool:
+    """Independent reference for the documented graph (ADR-0059)."""
+    if src == dst:
+        return True
+    if src == OrderStatus.PENDING:
+        return dst in (OrderStatus.CONFIRMED, OrderStatus.CANCELLED)
+    if src == OrderStatus.CONFIRMED:
+        return dst in (OrderStatus.SHIPPED, OrderStatus.CANCELLED)
+    return False  # SHIPPED + CANCELLED are terminal
+
+
+@given(st.sampled_from(OrderStatus), st.sampled_from(OrderStatus))
+def test_order_status_transitions_match_doc(src: OrderStatus, dst: OrderStatus) -> None:
+    """Invariant 4 (ADR-0059) : Order status transition graph matches doc.
+
+    Hypothesis enumerates the 4×4 = 16 (src, dst) pairs ; each must produce
+    the answer from the independent reference. Any drift between the
+    production code and the documented graph fails this test."""
+    expected = _is_valid_order_transition(src, dst)
+    assert src.can_transition_to(dst) is expected, f"{src} → {dst} expected={expected}"
+
+
+def test_order_status_null_target_always_false() -> None:
+    """Captures the contract that callers can't accidentally clear status."""
+    for s in OrderStatus:
+        assert s.can_transition_to(None) is False
+
+
+def _is_valid_line_transition(src: OrderLineStatus, dst: OrderLineStatus) -> bool:
+    if src == dst:
+        return True
+    if src == OrderLineStatus.PENDING:
+        return dst == OrderLineStatus.SHIPPED
+    if src == OrderLineStatus.SHIPPED:
+        return dst == OrderLineStatus.REFUNDED
+    return False  # REFUNDED terminal
+
+
+@given(st.sampled_from(OrderLineStatus), st.sampled_from(OrderLineStatus))
+def test_order_line_status_transitions_match_doc(
+    src: OrderLineStatus, dst: OrderLineStatus
+) -> None:
+    """Invariant 5 (ADR-0059) : OrderLine status transition graph (3×3 = 9)."""
+    expected = _is_valid_line_transition(src, dst)
+    assert src.can_transition_to(dst) is expected, f"{src} → {dst} expected={expected}"
+
+
+def test_order_line_pending_cannot_skip_to_refunded() -> None:
+    """Audit requirement : you can only refund what was shipped."""
+    assert OrderLineStatus.PENDING.can_transition_to(OrderLineStatus.REFUNDED) is False

@@ -25,6 +25,29 @@ class OrderStatus(StrEnum):
     SHIPPED = "SHIPPED"
     CANCELLED = "CANCELLED"
 
+    def can_transition_to(self, target: OrderStatus | None) -> bool:
+        """Pure state-machine check — is the transition self → target allowed ?
+
+        Per shared ADR-0059, valid graph :
+            PENDING → CONFIRMED → SHIPPED
+                ↘            ↘
+                 CANCELLED   CANCELLED
+
+        Self-transitions allowed (idempotent re-affirm). Backwards forbidden.
+        CANCELLED is terminal. Null target always rejected.
+        """
+        if target is None:
+            return False
+        if self == target:
+            return True
+        match self:
+            case OrderStatus.PENDING:
+                return target in (OrderStatus.CONFIRMED, OrderStatus.CANCELLED)
+            case OrderStatus.CONFIRMED:
+                return target in (OrderStatus.SHIPPED, OrderStatus.CANCELLED)
+            case OrderStatus.SHIPPED | OrderStatus.CANCELLED:
+                return False
+
 
 class Order(Base):
     """`orders` table — header. Lines come via OrderLine (alembic 0004)."""
