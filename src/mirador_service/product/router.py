@@ -80,9 +80,7 @@ async def create_product(payload: ProductCreate, session: DbSession) -> ProductR
 
 
 @router.put("/{product_id}", response_model=ProductResponse)
-async def update_product(
-    product_id: int, payload: ProductCreate, session: DbSession
-) -> ProductResponse:
+async def update_product(product_id: int, payload: ProductCreate, session: DbSession) -> ProductResponse:
     """Update a product (replace fields). 404 if absent.
 
     Per shared ADR-0059, mutating `unit_price` here MUST NOT propagate to

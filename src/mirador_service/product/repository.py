@@ -64,7 +64,9 @@ class ProductRepository:
         if product is None:
             return None
         product.name = name
-        product.description = description
+        # description is typed Mapped[str] but nullable=True at the DB level
+        # (SQLAlchemy 2.0.36 + Python 3.14 incompat workaround — see models.py).
+        product.description = description  # type: ignore[assignment]
         product.unit_price = unit_price  # type: ignore[assignment]
         product.stock_quantity = stock_quantity
         await self.session.flush()
