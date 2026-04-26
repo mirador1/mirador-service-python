@@ -160,6 +160,16 @@ plugins = ["pydantic.mypy"]
 module = ["aiokafka", "aiokafka.*", "testcontainers.*", "apscheduler.*"]
 ignore_missing_imports = true
 
+# mcp (Anthropic MCP SDK) ships py.typed but its FastMCP.tool() decorator
+# is typed as ``Callable[[AnyFunction], AnyFunction]`` (= ``Any`` propagation).
+# Strict mypy flags every decorated wrapper inside :func:`register_tools` as
+# ``untyped-decorator`` ; suppressing that one error code per file lets us keep
+# strict mode for ALL real business logic in mcp/ (the wrappers are pure
+# dispatch — type errors surface in the WRAPPED functions, which stay typed).
+[[tool.mypy.overrides]]
+module = ["mirador_service.mcp.tools"]
+disable_error_code = ["untyped-decorator"]
+
 [tool.pytest.ini_options]
 # cov-fail-under=90 — ADR-0007 §3 industrial Python posture :
 #  - 65 → 80 (Étape 9) : greenlet+thread hooks + 16 new tests.
