@@ -23,13 +23,13 @@ from mirador_service.customer.audit_router import router as audit_router
 from mirador_service.customer.diagnostic_router import router as diagnostic_router
 from mirador_service.customer.enrichment_router import router as enrichment_router
 from mirador_service.customer.router import router as customer_router
-from mirador_service.product.router import router as product_router
 from mirador_service.db.base import reset_engine
 from mirador_service.integration.redis_client import close_redis
 from mirador_service.messaging.kafka_client import start_kafka, stop_kafka
 from mirador_service.middleware.logging import configure_logging
 from mirador_service.middleware.setup import register_middleware
 from mirador_service.observability.otel import init_otel, shutdown_otel
+from mirador_service.product.router import router as product_router
 
 logger = logging.getLogger(__name__)
 
