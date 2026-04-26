@@ -135,6 +135,72 @@ if [ -n "$CUST_ID" ] && [ -n "$PROD_ID" ]; then
 fi
 
 echo
+echo "── MCP server (ADR-0062) — JSON-RPC over /mcp/ ──"
+# Mint an admin JWT so we exercise the admin-only path too.
+LOGIN_RESP=$(curl -s -X POST "$BASE/auth/login" -H "content-type: application/json" \
+    -d '{"username":"admin","password":"admin"}' 2>/dev/null)
+TOKEN=$(echo "$LOGIN_RESP" | /usr/bin/python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('access_token',''))" 2>/dev/null)
+
+if [ -z "$TOKEN" ]; then
+    printf "  ${RED}✗${NC} %-50s (no admin user seeded — run alembic + seed first)\n" "mcp: mint JWT"
+    FAIL=$((FAIL + 1))
+else
+    # 1. Initialize the MCP session — accepts JSON-RPC ; SDK assigns a session id.
+    INIT_RESP=$(curl -s -i -X POST "$BASE/mcp/" \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "Accept: application/json, text/event-stream" \
+        -H "Content-Type: application/json" \
+        -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"0"}}}' 2>/dev/null)
+    SESSION_ID=$(echo "$INIT_RESP" | grep -i "^mcp-session-id:" | awk '{print $2}' | tr -d '\r')
+    if [ -n "$SESSION_ID" ]; then
+        printf "  ${GREEN}✓${NC} %-50s session=%s\n" "mcp: initialize" "${SESSION_ID:0:8}…"
+        PASS=$((PASS + 1))
+    else
+        printf "  ${RED}✗${NC} %-50s\n" "mcp: initialize (no session id)"
+        FAIL=$((FAIL + 1))
+    fi
+
+    # 2. Send the initialized notification (no response body — ack-only).
+    curl -s -X POST "$BASE/mcp/" \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "Accept: application/json, text/event-stream" \
+        -H "Content-Type: application/json" \
+        -H "mcp-session-id: $SESSION_ID" \
+        -d '{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}' >/dev/null 2>&1
+
+    # 3. tools/list — must return 14.
+    TOOLS_RESP=$(curl -s -X POST "$BASE/mcp/" \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "Accept: application/json, text/event-stream" \
+        -H "Content-Type: application/json" \
+        -H "mcp-session-id: $SESSION_ID" \
+        -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' 2>/dev/null)
+    TOOL_COUNT=$(echo "$TOOLS_RESP" | /usr/bin/python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d.get('result',{}).get('tools',[])))" 2>/dev/null)
+    if [ "$TOOL_COUNT" = "14" ]; then
+        printf "  ${GREEN}✓${NC} %-50s count=%s\n" "mcp: tools/list" "$TOOL_COUNT"
+        PASS=$((PASS + 1))
+    else
+        printf "  ${RED}✗${NC} %-50s count=%s (expected 14)\n" "mcp: tools/list" "$TOOL_COUNT"
+        FAIL=$((FAIL + 1))
+    fi
+
+    # 4. tools/call get_actuator_info — verify the typed JSON shape.
+    INFO_RESP=$(curl -s -X POST "$BASE/mcp/" \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "Accept: application/json, text/event-stream" \
+        -H "Content-Type: application/json" \
+        -H "mcp-session-id: $SESSION_ID" \
+        -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_actuator_info","arguments":{}}}' 2>/dev/null)
+    if echo "$INFO_RESP" | grep -q '"title"'; then
+        printf "  ${GREEN}✓${NC} %-50s\n" "mcp: tools/call get_actuator_info"
+        PASS=$((PASS + 1))
+    else
+        printf "  ${RED}✗${NC} %-50s\n" "mcp: tools/call get_actuator_info"
+        FAIL=$((FAIL + 1))
+    fi
+fi
+
+echo
 if [ "$FAIL" = "0" ]; then
     printf "${GREEN}All %d checks passed.${NC}\n" "$PASS"
     exit 0

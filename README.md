@@ -151,6 +151,85 @@ bin/              # ops scripts (run.sh, demo-up, etc.)
 - `GET /actuator/health` — liveness + readiness composite
 - `GET /actuator/prometheus` — metrics scrape endpoint
 - `GET /actuator/info` — build + git info
+- `POST /mcp/` — Model Context Protocol streamable-http transport (see below)
+
+## AI integration via MCP
+
+Mirrors the Java sibling's [ADR-0062](https://gitlab.com/mirador1/mirador-service-java/-/blob/main/docs/adr/0062-mcp-server-tool-exposure-per-method.md)
+— Mirador exposes an in-process [Model Context Protocol](https://modelcontextprotocol.io/)
+server at `/mcp/`. An LLM client (Claude Desktop, `claude mcp add`,
+the MCP Inspector) connects with the same JWT the REST API uses and
+gets a typed catalogue of 14 tools without any new HTTP plumbing.
+
+**Architectural constraint** : the backend stays infrastructure-agnostic
+— ZERO HTTP clients to Loki / Mimir / Grafana / GitLab / GitHub /
+kubectl in the FastAPI process. Only what the backend ALREADY produces
+in-process : Python `logging` ring buffer, prometheus_client REGISTRY,
+FastAPI's auto-OpenAPI, and the Order/Product/Customer domain.
+
+External infra MCPs (Loki tail, Mimir query, Grafana panel render)
+live OUTSIDE the codebase ; each Claude session adds them
+independently via `claude mcp add`. See ADR-0062 §"External infra MCP
+servers" for the produces-vs-accesses decision rule.
+
+### 14 tools
+
+| Domain (7) | Backend-local observability (7) |
+|---|---|
+| `list_recent_orders` | `tail_logs` |
+| `get_order_by_id` | `get_metrics` |
+| `create_order` (idempotent) | `get_health` |
+| `cancel_order` | `get_health_detail` (admin) |
+| `find_low_stock_products` | `get_actuator_env` (redacted) |
+| `get_customer_360` | `get_actuator_info` |
+| `trigger_chaos_experiment` (admin) | `get_openapi_spec` |
+
+Returns are typed Pydantic v2 DTOs (frozen=True) ; ORM entities
+NEVER reach the LLM. Decimal stays Decimal (NUMERIC(12,2) precision
+preserved). Each tool call writes a structured audit log line
+(action=`MCP_TOOL_CALL`, args hashed to 8-char SHA-256 prefix).
+
+### 60-second demo
+
+```bash
+# 1. Start the service
+uv run mirador-service                # or: docker compose up
+
+# 2. Mint a JWT
+TOKEN=$(curl -s -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}' | jq -r .access_token)
+
+# 3. Initialize an MCP session
+curl -s -X POST http://localhost:8080/mcp/ \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{
+       "protocolVersion":"2025-06-18","capabilities":{},
+       "clientInfo":{"name":"demo","version":"0"}}}'
+
+# 4. Call a tool
+curl -s -X POST http://localhost:8080/mcp/ \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{
+       "name":"get_actuator_info","arguments":{}}}'
+```
+
+Or wire the service to your local Claude Desktop / Claude CLI :
+```
+claude mcp add --transport http mirador http://localhost:8080/mcp/
+```
+
+### Auth
+
+The MCP endpoint goes through the same `decode_token()` path as REST
+(see `mirador_service/auth/jwt.py`). `get_health_detail` and
+`trigger_chaos_experiment` are admin-only ; all other tools accept
+any authenticated user. Admin tokens carry both `ROLE_USER` and
+`ROLE_ADMIN` scopes (admin = superset).
 
 ## Compat philosophy
 

@@ -105,6 +105,30 @@ uv run lint-imports                  # arch tests (import-linter)
 - Never push to `main` directly.
 - **Tag stable-vX.Y.Z ONLY after the post-merge `main` pipeline goes green.**
 
+## Known gotchas
+
+- **MCP server is in-process only.** The `/mcp/` endpoint (mounted by
+  `mirador_service/mcp/mount.py`) ONLY surfaces what the backend
+  already produces in-process — Python `logging` ring buffer,
+  `prometheus_client` REGISTRY, FastAPI's auto-OpenAPI, the
+  Order/Product/Customer domain. No HTTP clients to Loki / Mimir /
+  Grafana / GitLab / kubectl. External infra MCPs live outside
+  this codebase. See [ADR-0062](https://gitlab.com/mirador1/mirador-service-java/-/blob/main/docs/adr/0062-mcp-server-tool-exposure-per-method.md)
+  in the Java sibling for the produces-vs-accesses decision rule.
+- **MCP env vars** :
+  - `MIRADOR_MCP_RING_BUFFER_SIZE` — capacity of the in-process log
+    ring buffer that feeds the `tail_logs` tool. Default 500.
+    Malformed / non-positive values fall back to 500 with a warning.
+  - `MIRADOR_MCP_DISABLE_HOST_GUARD=1` — disables the MCP SDK's
+    DNS-rebinding host-header guard. Set this only in tests using
+    `httpx.ASGITransport` (synthetic `Host: test`). Production keeps
+    the guard ON ; the SDK validates Host against `resource_server_url`.
+- **MCP admin scope** — admin JWTs carry BOTH `ROLE_USER` and
+  `ROLE_ADMIN` in the OAuth scopes list. The SDK's
+  `required_scopes=[ROLE_USER]` gate (set in `mount.py`) accepts
+  admin tokens this way ; per-tool `require_role(ROLE_ADMIN)` still
+  discriminates inside admin-only tools.
+
 ## Compat philosophy
 
 Default target : Python 3.13.
