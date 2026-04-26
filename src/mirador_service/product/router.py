@@ -79,6 +79,27 @@ async def create_product(payload: ProductCreate, session: DbSession) -> ProductR
     return ProductResponse.from_orm_entity(saved)
 
 
+@router.put("/{product_id}", response_model=ProductResponse)
+async def update_product(product_id: int, payload: ProductCreate, session: DbSession) -> ProductResponse:
+    """Update a product (replace fields). 404 if absent.
+
+    Per shared ADR-0059, mutating `unit_price` here MUST NOT propagate to
+    existing `OrderLine.unit_price_at_order` (snapshots are immutable).
+    Repo only touches Product columns.
+    """
+    repo = ProductRepository(session)
+    updated = await repo.update(
+        product_id,
+        name=payload.name,
+        description=payload.description,
+        unit_price=payload.unit_price,
+        stock_quantity=payload.stock_quantity,
+    )
+    if updated is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    return ProductResponse.from_orm_entity(updated)
+
+
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_product(product_id: int, session: DbSession) -> None:
     """Delete a product. 404 if absent (idempotent variant skipped — match Java semantics)."""

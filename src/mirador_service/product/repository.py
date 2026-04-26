@@ -45,6 +45,34 @@ class ProductRepository:
         await self.session.refresh(product)
         return product
 
+    async def update(
+        self,
+        product_id: int,
+        name: str,
+        description: str | None,
+        unit_price: object,
+        stock_quantity: int,
+    ) -> Product | None:
+        """Replace mutable fields. Returns the updated entity, or None if absent.
+
+        Per shared ADR-0059, mutating `unit_price` here MUST NOT propagate
+        to existing `OrderLine.unit_price_at_order` (snapshots stay
+        immutable). The repo only writes Product columns ; OrderLines are
+        untouched.
+        """
+        product = await self.session.get(Product, product_id)
+        if product is None:
+            return None
+        product.name = name
+        # description is typed Mapped[str] but nullable=True at the DB level
+        # (SQLAlchemy 2.0.36 + Python 3.14 incompat workaround — see models.py).
+        product.description = description  # type: ignore[assignment]
+        product.unit_price = unit_price  # type: ignore[assignment]
+        product.stock_quantity = stock_quantity
+        await self.session.flush()
+        await self.session.refresh(product)
+        return product
+
     async def delete(self, product_id: int) -> bool:
         product = await self.session.get(Product, product_id)
         if product is None:
