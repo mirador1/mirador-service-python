@@ -159,15 +159,20 @@ else
 fi
 
 # ── 6. ADR drift ──
+# Calls the SHARED regenerator via the submodule (factored 2026-04-26 to avoid
+# duplicating universal scripts across 4 repos — see ADR-0001).
 section "6. ADR drift"
+ADR_REGEN="infra/shared/bin/dev/regen-adr-index.sh"
 if [ "$SKIP_ADR" = "1" ]; then
     info "skipped (--skip-adr)"
 elif [ ! -f docs/adr/README.md ]; then
     info "no docs/adr/README.md — skipping drift check"
-elif bin/dev/regen-adr-index.sh --check >/dev/null 2>&1; then
+elif [ ! -x "$ADR_REGEN" ]; then
+    amber "shared regenerator missing ($ADR_REGEN) — bump submodule SHA"
+elif "$ADR_REGEN" --check >/dev/null 2>&1; then
     green "ADR index in sync with docs/adr/*.md"
 else
-    amber "ADR index drift — run 'bin/dev/regen-adr-index.sh --in-place'"
+    amber "ADR index drift — run '$ADR_REGEN --in-place'"
 fi
 
 # ── Summary ──
