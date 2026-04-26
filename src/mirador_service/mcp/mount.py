@@ -27,11 +27,13 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import os
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
 from mcp.server.auth.settings import AuthSettings
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import AnyHttpUrl
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -104,6 +106,20 @@ def mount_mcp_server(app: FastAPI) -> FastMCP:
     #    which calls our own decode_token().
     settings = get_settings()
     base_url = AnyHttpUrl(f"http://{settings.server_host}:{settings.server_port}")
+    # In dev_mode (or when MIRADOR_MCP_DISABLE_HOST_GUARD=1), relax the SDK's
+    # DNS-rebinding guard so ASGI-style HTTP tests with a synthetic Host
+    # header (e.g. ``http://test`` from ``httpx.ASGITransport``) reach the
+    # tools. Two ways to opt in :
+    #   - ``settings.dev_mode == True`` (typical local dev path)
+    #   - ``MIRADOR_MCP_DISABLE_HOST_GUARD=1`` env (test path — bypasses
+    #     the lru_cache around get_settings() so test code that toggles env
+    #     mid-session still works).
+    # In prod both env knobs stay off ; the SDK enforces a real Host header
+    # match against ``resource_server_url``.
+    relax_guard = settings.dev_mode or os.environ.get("MIRADOR_MCP_DISABLE_HOST_GUARD") == "1"
+    transport_security: TransportSecuritySettings | None = (
+        TransportSecuritySettings(enable_dns_rebinding_protection=False) if relax_guard else None
+    )
     mcp = FastMCP(
         name="mirador-service-python",
         instructions=(
@@ -122,6 +138,7 @@ def mount_mcp_server(app: FastAPI) -> FastMCP:
         # Mount path used by streamable_http_app() ; aligns the URL the
         # FastMCP sub-app sees with where we attach it on the parent app.
         streamable_http_path="/",
+        transport_security=transport_security,
     )
 
     # 3. Build the Deps closure + register the 14 tools.

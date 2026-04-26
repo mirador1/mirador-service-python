@@ -106,11 +106,16 @@ class McpTokenVerifier(TokenVerifier):
         _current_user.set(McpUser(username=username, role=role))
 
         # Echo the role through OAuth `scopes` so the SDK's RFC 9728 metadata
-        # surfaces the role to clients that introspect.
+        # surfaces the role to clients that introspect. Admin is treated as
+        # a superset of viewer — admins carry BOTH scopes so the SDK's
+        # ``required_scopes=[ROLE_USER]`` gate (declared in mount.py) accepts
+        # admin requests too. The role-specific gates inside individual
+        # tools (require_role(ROLE_ADMIN)) still kick in for admin-only ones.
+        scopes = [ROLE_USER, ROLE_ADMIN] if role == ROLE_ADMIN else [role]
         return AccessToken(
             token=token,
             client_id=username,
-            scopes=[role],
+            scopes=scopes,
             expires_at=int(claims.get("exp") or (time.time() + 60)),
         )
 

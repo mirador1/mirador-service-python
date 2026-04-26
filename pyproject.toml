@@ -233,6 +233,7 @@ exclude_lines = [
 [dependency-groups]
 dev = [
     "aiosqlite==0.20.0",
+    "asgi-lifespan>=2.1.0",
     "fakeredis>=2.35.1",
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.7.6",
