@@ -1,15 +1,56 @@
 # mirador-service-python
 
-Miroir Python de [`mirador-service-java`](https://gitlab.com/mirador1/mirador-service-java)
-— démo de service client construite avec FastAPI + Pydantic v2 + SQLAlchemy 2.x async.
+<sub>[English](README.md) · **Français**</sub>
 
-**Même philosophie que l'original Java** : projet de démo de niveau industriel
-montrant l'observabilité moderne (OpenTelemetry, Prometheus), la sécurité
-(authentification JWT), les patterns event-driven (Kafka request-reply),
-le caching (Redis) et la discipline CI/CD (pipelines GitLab, ADRs,
-conventional commits, dépendances figées).
+[![pipeline](https://gitlab.com/mirador1/mirador-service-python/badges/main/pipeline.svg)](https://gitlab.com/mirador1/mirador-service-python/-/pipelines)
+[![coverage](https://img.shields.io/badge/coverage-90.21%25-success)](https://gitlab.com/mirador1/mirador-service-python/-/pipelines)
+[![Python 3.14](https://img.shields.io/badge/Python-3.14_+_3.13_3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.136-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+![SLO 99.5%](https://img.shields.io/badge/SLO-99.5%25_+_burn_rate-2D7FF9)
+![mypy strict](https://img.shields.io/badge/mypy-strict-blue)
 
-> 🇬🇧 English version : [README.md](README.md)
+## Ce que ce projet démontre
+
+Miroir Python de [`mirador-service-java`](https://gitlab.com/mirador1/mirador-service-java) —
+mêmes préoccupations backend industrielles, exprimées dans la stack Python moderne :
+
+- **Pipeline d'onboarding client industriel** (registration → validation → enrichissement
+  externe via JSONPlaceholder + Ollama LLM → événements d'audit Kafka → suivi d'état →
+  endpoints de diagnostic d'incident) — pas une démo CRUD.
+- **Discipline de typage émulant Java** : `mypy --strict` + Pydantic v2 + `Final` /
+  `Literal` / `TypeAlias` (PEP 695) partout ; **127 tests unitaires**, **couverture 90.21%**
+  avec gate bloquant `--cov-fail-under=90` ; **8 tests property-based hypothesis** ;
+  **import-linter** = ArchUnit pour Python.
+- **Même observabilité** : OpenTelemetry (traces + logs + métriques) → stack LGTM,
+  exporter starlette-prometheus, **3 SLOs définis-as-code via Sloth** avec alerting
+  multi-window multi-burn-rate (Google SRE Workbook).
+- **Même supply chain sécurité** : JWT (pyjwt) + bcrypt 5.x rotation, **gate CVE pip-audit**
+  (3 CVEs corrigés pendant le dev), `gitleaks`, exit-tickets datés `--ignore-vuln`.
+- **Même discipline CI** : GitLab CI exclusivement, runner group-level, conventional-commits,
+  hooks lefthook 3-niveaux, ruleset ruff complet, Docker multi-arch via buildx.
+
+La cible Python est **3.14 (branche par défaut)** — exploration de la stack la plus récente —
+mais la matrice de compatibilité en CI compile + teste vert sur **3.12 + 3.13** depuis le même
+code. Cible production conservatrice = 3.12 (le plus ancien avec PEP 695 `type` keyword +
+ergonomie `Final` / `Literal`).
+
+Voir [ADR-0007 — Pratiques Python industrielles](docs/adr/0007-industrial-python-best-practices.md)
+pour la baseline de 13 décisions + [documentation SLO/SLA](docs/slo/).
+
+## TL;DR pour les recruteurs (lecture 60 sec)
+
+- **Démonstrateur polyrepo** : implémentation Python du même backend industriel servi par
+  [`mirador-service-java`](https://gitlab.com/mirador1/mirador-service-java). Infra +
+  observabilité + templates CI partagés via le submodule git
+  [`mirador-service-shared`](https://gitlab.com/mirador1/mirador-service-shared).
+- **mypy --strict sur 41 fichiers source** : Final / Literal / TypeAlias / aliases PEP 695,
+  pas d'Any implicite, pas de defs non typées.
+- **Couverture 90.21%** avec gate dur `--cov-fail-under=90` ; 127 tests unitaires + property-based
+  hypothesis + 5 tests d'intégration kafka_client via testcontainers.
+- **SLO/SLA-as-code** via Sloth : 3 SLOs (availability 99% / latency p99 < 500ms /
+  enrichment 99.5%) sur 30j + alerting multi-burn-rate + dashboard Grafana.
+- **Gate dur pip-audit** : 3 CVEs détectées + corrigées pendant le dev (pytest 9.0.3,
+  fastapi 0.136.1, starlette 1.0.0).
 
 ## Pile technique
 

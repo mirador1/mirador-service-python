@@ -1,5 +1,11 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": [
+    "Mirador-service-python — automated Python dependency updates.",
+    "Same posture as the Java mirror (infra/shared/renovate.json) :",
+    "minor/patch auto-merge after CI green ; majors require human review.",
+    "Python-specific grouping for FastAPI / SQLAlchemy / Pydantic / OTel families."
+  ],
   "extends": [
     "config:recommended",
     ":semanticCommits",
@@ -10,24 +16,55 @@
     "schedule:weekends"
   ],
   "timezone": "Europe/Paris",
-  "description": [
-    "Mirador-service-python — automated Python dependency updates.",
-    "Same posture as the Java mirror (infra/shared/renovate.json) :",
-    "minor/patch auto-merge after CI green ; majors require human review.",
-    "Python-specific grouping for FastAPI / SQLAlchemy / Pydantic / OTel families."
+  "labels": [
+    "dependencies",
+    "renovate"
   ],
-  "labels": ["dependencies", "renovate"],
+  "assigneesFromCodeOwners": true,
+  "reviewersFromCodeOwners": true,
   "platformAutomerge": true,
   "rebaseWhen": "conflicted",
   "prHourlyLimit": 4,
   "prConcurrentLimit": 10,
   "packageRules": [
     {
-      "description": "Auto-merge patch + minor updates after CI green. Majors need human review.",
-      "matchUpdateTypes": ["patch", "pin", "digest"],
+      "description": "Common rule : auto-merge patch + pin + digest after CI green. All 4 repos share this.",
+      "matchUpdateTypes": [
+        "patch",
+        "pin",
+        "digest"
+      ],
       "automerge": true,
       "automergeType": "pr",
       "platformAutomerge": true
+    },
+    {
+      "description": "Auto-merge minor updates for well-behaved ecosystems (Maven plugins, dev/build deps). Major bumps still need review.",
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "matchDepTypes": [
+        "build",
+        "dev",
+        "plugin"
+      ],
+      "automerge": true,
+      "platformAutomerge": true
+    },
+    {
+      "description": "Docker base images — pin by digest for reproducibility, but still upgrade.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "pinDigests": true
+    },
+    {
+      "description": "Never auto-merge SNAPSHOT dependencies (Maven snapshots, npm prerelease tags).",
+      "matchCurrentVersion": "/SNAPSHOT$/",
+      "enabled": false,
+      "matchPackageNames": [
+        "/.*/"
+      ]
     },
     {
       "description": "Group FastAPI + Starlette + Pydantic + Uvicorn — they're often released together with overlapping compat constraints.",
@@ -75,34 +112,26 @@
         "pytest",
         "/^pytest-/"
       ]
-    },
-    {
-      "description": "Docker base images — pin by digest for reproducibility, but still upgrade.",
-      "matchDatasources": ["docker"],
-      "pinDigests": true
-    },
-    {
-      "description": "Keep Python on the latest stable. Major bumps (3.14 → 3.15 in Oct 2026) require human review.",
-      "matchPackageNames": [
-        "python",
-        "ghcr.io/astral-sh/uv"
-      ],
-      "matchUpdateTypes": ["major"],
-      "labels": ["major-upgrade", "manual-review"],
-      "automerge": false
     }
   ],
-  "gitlabci": {
-    "description": "Keep .gitlab-ci/*.yml image tags current (e.g. ghcr.io/astral-sh/uv:python3.X-bookworm-slim)."
-  },
   "vulnerabilityAlerts": {
-    "labels": ["security", "priority-high"],
+    "labels": [
+      "security",
+      "priority-high"
+    ],
     "automerge": false,
-    "schedule": ["at any time"]
+    "schedule": [
+      "at any time"
+    ]
   },
   "lockFileMaintenance": {
-    "description": "Refresh uv.lock weekly to pull in transitive dep patches.",
+    "description": "Refresh lockfiles weekly to pull in transitive dep patches.",
     "enabled": true,
-    "schedule": ["before 5am on monday"]
+    "schedule": [
+      "before 5am on monday"
+    ]
+  },
+  "gitlabci": {
+    "description": "Keep .gitlab-ci/*.yml image tags current (e.g. ghcr.io/astral-sh/uv:python3.X-bookworm-slim)."
   }
 }
