@@ -50,7 +50,7 @@ async def list_lines(order_id: int, session: DbSession) -> list[OrderLineRespons
     """List all lines of an order."""
     stmt = select(OrderLine).where(OrderLine.order_id == order_id).order_by(OrderLine.id)
     lines = (await session.execute(stmt)).scalars().all()
-    return [OrderLineResponse.model_validate(l) for l in lines]
+    return [OrderLineResponse.model_validate(line) for line in lines]
 
 
 @router.post("", response_model=OrderLineResponse, status_code=status.HTTP_201_CREATED)
@@ -105,9 +105,9 @@ async def delete_line(order_id: int, line_id: int, session: DbSession) -> None:
 
 
 async def _recompute_order_total(session: AsyncSession, order: Order) -> None:
-    """Recompute order.total_amount = Σ(line.qty × line.unit_price_at_order)."""
+    """Recompute order.total_amount = Σ(line.qty * line.unit_price_at_order)."""
     stmt = select(OrderLine).where(OrderLine.order_id == order.id)
     lines = (await session.execute(stmt)).scalars().all()
-    total = sum((l.unit_price_at_order * l.quantity for l in lines), Decimal("0"))
+    total = sum((line.unit_price_at_order * line.quantity for line in lines), Decimal("0"))
     order.total_amount = total
     await session.flush()
