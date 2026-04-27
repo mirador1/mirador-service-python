@@ -98,10 +98,10 @@ rules state in dev).
 
 ## See also
 
-- [SLO Overview dashboard](../../infra/shared/infra/observability/grafana/dashboards-lgtm/slo-overview.json) — the overview gauge + burn-rate timeseries.
-- [SLO Breakdown by Endpoint](../../infra/observability/grafana-dashboards/slo-breakdown-by-endpoint.json) — annotated dashboard for this demo.
-- [Latency Heatmap](../../infra/observability/grafana-dashboards/latency-heatmap.json) — see the slow-query effect on tail-latency.
-- [Apdex](../../infra/observability/grafana-dashboards/apdex.json) — single-number user-satisfaction score.
+- [SLO Overview dashboard](https://gitlab.com/mirador1/mirador-service-shared/-/blob/main/infra/observability/grafana/dashboards-lgtm/slo-overview.json) — the overview gauge + burn-rate timeseries.
+- [SLO Breakdown by Endpoint](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/infra/observability/grafana-dashboards/slo-breakdown-by-endpoint.json) — annotated dashboard for this demo.
+- [Latency Heatmap](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/infra/observability/grafana-dashboards/latency-heatmap.json) — see the slow-query effect on tail-latency.
+- [Apdex](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/infra/observability/grafana-dashboards/apdex.json) — single-number user-satisfaction score.
 - [SLO Review Cadence](review-cadence.md) — when + how to revisit SLO targets.
-- [diagnostic_router.py](../../src/mirador_service/customer/diagnostic_router.py) — the 3 endpoint implementations.
+- [diagnostic_router.py](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/src/mirador_service/customer/diagnostic_router.py) — the 3 endpoint implementations.
 - [Google SRE Workbook ch. 5 — Alerting on SLOs](https://sre.google/workbook/alerting-on-slos/) — multi-window burn-rate rationale.

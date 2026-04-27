@@ -1,7 +1,7 @@
 # SLO Review Cadence
 
 > **Source of truth** : the cross-language review cadence is defined
-> in [`infra/shared/docs/slo/review-cadence.md`](../../infra/shared/docs/slo/review-cadence.md)
+> in [`infra/shared/docs/slo/review-cadence.md`](https://gitlab.com/mirador1/mirador-service-shared/-/blob/main/docs/slo/review-cadence.md)
 > ([repo source](https://gitlab.com/mirador1/mirador-service-shared/-/blob/main/docs/slo/review-cadence.md))
 > — same monthly / quarterly / post-incident loop applies to both
 > `mirador-service-python` and `mirador-service-java`. Both services
@@ -17,18 +17,18 @@ the shared submodule.
 ## Python-specific addenda (only what differs from the shared cadence)
 
 - **Compliance % source** : query against `sloth_service="mirador-service-python"`
-  on the [SLO Overview dashboard](../../infra/shared/infra/observability/grafana/dashboards-lgtm/slo-overview.json).
-- **Top burn contributors** : use [SLO Breakdown by Endpoint](../../infra/observability/grafana-dashboards/slo-breakdown-by-endpoint.json)
+  on the [SLO Overview dashboard](https://gitlab.com/mirador1/mirador-service-shared/-/blob/main/infra/observability/grafana/dashboards-lgtm/slo-overview.json).
+- **Top burn contributors** : use [SLO Breakdown by Endpoint](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/infra/observability/grafana-dashboards/slo-breakdown-by-endpoint.json)
   with the dashboard variable filtered to Python's `path_template` label
   (Java's equivalent uses Micrometer's `uri` label).
-- **Tail-latency analysis** : use [Latency Heatmap](../../infra/observability/grafana-dashboards/latency-heatmap.json)
+- **Tail-latency analysis** : use [Latency Heatmap](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/infra/observability/grafana-dashboards/latency-heatmap.json)
   to see if breaches come from a small slow tail or a uniform shift.
-- **User-satisfaction proxy** : use [Apdex](../../infra/observability/grafana-dashboards/apdex.json)
+- **User-satisfaction proxy** : use [Apdex](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/infra/observability/grafana-dashboards/apdex.json)
   to communicate health to non-SRE stakeholders in 1 number.
 
 ## See also
 
-- [Shared review-cadence.md](../../infra/shared/docs/slo/review-cadence.md) —
+- [Shared review-cadence.md](https://gitlab.com/mirador1/mirador-service-shared/-/blob/main/docs/slo/review-cadence.md) —
   the canonical document.
 - [Python SLA promise](sla.md).
 - [Python SLO definitions](slo.yaml).

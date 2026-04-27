@@ -41,7 +41,7 @@
 Cadence (monthly compliance pass + quarterly target review +
 post-incident root-cause loop) documented in
 [`review-cadence.md`](review-cadence.md) — thin pointer to the
-cross-language [shared cadence doc](../../infra/shared/docs/slo/review-cadence.md).
+cross-language [shared cadence doc](https://gitlab.com/mirador1/mirador-service-shared/-/blob/main/docs/slo/review-cadence.md).
 Hands-on demo of the burn-rate alerting in
 [`chaos-demo.md`](chaos-demo.md).
 
