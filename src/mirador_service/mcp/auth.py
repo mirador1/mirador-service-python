@@ -30,6 +30,7 @@ from typing import Final
 
 from mcp.server.auth.provider import AccessToken, TokenVerifier
 
+from mirador_service.auth.api_key import API_KEY_USERNAME
 from mirador_service.auth.jwt import ACCESS_TOKEN, JwtError, decode_token
 from mirador_service.config.settings import get_settings
 
@@ -41,6 +42,17 @@ logger = logging.getLogger(__name__)
 #: parity with Spring Security's GrantedAuthority convention.
 ROLE_USER: Final[str] = "ROLE_USER"
 ROLE_ADMIN: Final[str] = "ROLE_ADMIN"
+
+#: Number of seconds the synthetic API-key AccessToken is reported as
+#: valid for. Matches a comfortable buffer over typical MCP session
+#: lifetimes (initialize + tool calls) without being so long that a
+#: cached token survives a key rotation by hours. The MCP SDK's
+#: ``BearerAuthBackend`` checks ``expires_at < now`` ; we set this to
+#: ``now + API_KEY_TOKEN_TTL_SECONDS`` per request, so a rotated key
+#: takes effect on the very next request (the OLD key's
+#: ``verify_token`` returns None at that point because the configured
+#: secret has changed).
+API_KEY_TOKEN_TTL_SECONDS: Final[int] = 3600
 
 
 @dataclass(frozen=True)
@@ -87,6 +99,25 @@ class McpTokenVerifier(TokenVerifier):
     """
 
     async def verify_token(self, token: str) -> AccessToken | None:
+        # Path 1 : static API key (machine-to-machine).
+        # Mirrors :java:`ApiKeyAuthenticationFilter` running BEFORE the JWT
+        # filter — the API key takes precedence over JWT. Used by Claude
+        # MCP clients that send ``X-API-Key: demo-api-key-2026`` (rewritten
+        # to ``Authorization: Bearer demo-api-key-2026`` by
+        # :class:`ApiKeyMiddleware`) and by direct callers that pass the
+        # API key as a Bearer token. The API key always grants admin
+        # scopes — same as the Java filter granting ROLE_ADMIN.
+        api_key = get_settings().auth.api_key
+        if api_key and token == api_key:
+            _current_user.set(McpUser(username=API_KEY_USERNAME, role=ROLE_ADMIN))
+            return AccessToken(
+                token=token,
+                client_id=API_KEY_USERNAME,
+                scopes=[ROLE_USER, ROLE_ADMIN],
+                expires_at=int(time.time()) + API_KEY_TOKEN_TTL_SECONDS,
+            )
+
+        # Path 2 : JWT bearer token (interactive).
         settings = get_settings()
         try:
             claims = decode_token(settings.jwt, token, expected_type=ACCESS_TOKEN)
