@@ -2,6 +2,22 @@
 
 <sub>[English](README.md) · **Français**</sub>
 
+> **Ce que ce projet démontre comme maîtrise**
+>
+> _Un survol 30 secondes des thèmes centraux de la maîtrise backend actuelle —
+> chaque axe est vérifié à chaque tag `stable-py-v*`. Source de vérité pour
+> "ce que cette révision garantit" : `git show stable-py-vX.Y.Z`._
+>
+> - 🤖 **IA** — Serveur FastMCP (Anthropic `mcp[cli]≥1.27`) + transport streamable-http monté sur `/mcp` + 14 outils in-process miroirs du backend Java (décorateurs `@tool` par méthode, DTO Pydantic v2 frozen) + log d'audit par appel d'outil (action `MCP_TOOL_CALL`) + cache d'idempotence sur `create_order` + authz par rôle (`require_role(ROLE_ADMIN)`).
+> - 🔒 **Sécurité** — JWT HS256 (15 min, rotation refresh-token) + **middleware X-API-Key** (parité avec `ApiKeyAuthenticationFilter` Java, défaut `demo-api-key-2026`) + RBAC (`ROLE_ADMIN` / `ROLE_USER`, les deux accordés sur le chemin API-key) + garde host anti DNS-rebinding + redaction env-var `(?i).*(password|secret|token|key|credential).*` + gate dur pip-audit (zéro shield `allow_failure`).
+> - 🧠 **Fonctionnel** — Onboarding & enrichissement client (lookup JSONPlaceholder + génération de bio par LLM Ollama) + domaine Order / Product / OrderLine (6 invariants depuis l'ADR-0059 partagée, vérifiés via 8 tests de propriétés Hypothesis) + événements d'audit Kafka + endpoints diagnostic d'incident (`slow-query`, `db-failure`, `kafka-timeout`).
+> - ☁️ **Infrastructure & Cloud** — Image Docker (412 Mo sur debian-slim ; alpine bloqué sur les wheels musl pydantic_core / cryptography / bcrypt) + déploiement GKE via la même famille de chart que le frère Java + Workload Identity Federation + Postgres asyncpg + Kafka aiokafka + Redis async client.
+> - 📊 **Observabilité** — Traces + logs + métriques OpenTelemetry → stack LGTM (Tempo / Loki / Mimir / Grafana) + exporter `starlette-prometheus` + 3 SLOs as code via Sloth (miroir Java) + alerting multi-burn-rate + 4 dashboards (vue d'ensemble SLO, Apdex, heatmap latence, breakdown SLO par `path_template`) + annotations chaos-driven sur les SLO + 3 runbooks.
+> - ✅ **Qualité** — `pytest --cov-fail-under=90` gate bloquant (~308 tests unit + integration, 94.59 % de couverture sur la suite complète) + `mypy --strict` + `ruff check` + `ruff format --check` + `import-linter` (l'ArchUnit Python) + tests de propriétés Hypothesis + Testcontainers (Postgres) + asgi-lifespan + 19 tests dédiés au middleware X-API-Key.
+> - 🔄 **CI/CD** — GitLab CI 9 jobs sur `lint / test / integration / package / sonar / pages` + matrice de compat Python 3.12 / 3.13 / 3.14 (manuel) + Conventional Commits (lefthook + commitlint) + auto-merge avec `--remove-source-branch=false` + gate dur pip-audit + import-linter + Renovate hebdo + push miroir GitHub sur tag.
+> - 🏛 **Architecture** — Feature-slicing sous `src/mirador_service/{customer, order, product, mcp, auth, …}` (miroir de la structure de package Java) + exposition MCP `@tool` par méthode (ADR-0062, règle "produces vs accesses" — ZÉRO client HTTP vers Loki / Mimir / Grafana / GitLab / kubectl dans ce jar Python) + sous-modules polyrepo flat α (ADR-0060) + 7 non-négociables Clean Code.
+> - 🛠 **DevX** — `uv` (astral, 100× plus rapide que pip) + hooks Lefthook commit-msg + pre-push + `bin/dev/api-smoke.sh` (flows Hurl) + tâches programmées pour TODO datés + integration-tests + audit flip-gates sonarcloud (critère 5-greens-consecutifs tracé dans `TASKS.md`) + Renovate + template CI Conventional Commits (partagé via `infra/common/`).
+
 [![pipeline](https://gitlab.com/mirador1/mirador-service-python/badges/main/pipeline.svg)](https://gitlab.com/mirador1/mirador-service-python/-/pipelines)
 [![coverage](https://img.shields.io/badge/coverage-90.21%25-success)](https://gitlab.com/mirador1/mirador-service-python/-/pipelines)
 [![Python 3.14](https://img.shields.io/badge/Python-3.14_+_3.13_3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
@@ -52,27 +68,43 @@ pour la baseline de 13 décisions + [documentation SLO/SLA](docs/slo/).
 - **Gate dur pip-audit** : 3 CVEs détectées + corrigées pendant le dev (pytest 9.0.3,
   fastapi 0.136.1, starlette 1.0.0).
 
+## Ce que ça prouve pour un architecte backend senior
+
+| Préoccupation | Ce que ce repo démontre | Pourquoi ça compte en production |
+|---|---|---|
+| **Discipline de typage** | `mypy --strict` sur 41 fichiers ; aliases PEP 695 `type` ; constantes `Final[T]` ; `Literal["access","refresh"]` pour le narrowing du type de token ; 5 ADRs (0008-0012) documentent la discipline. | Le typing runtime-only de Python obtient des garanties équivalentes au compile-time ; les refactors restent sûrs. |
+| **Architecture async-first** | Chaque chemin I/O est `async def` ; SQLAlchemy 2.x async + asyncpg + aiokafka + redis-py async + httpx.AsyncClient ; corrélation `ContextVar` propagée à travers les coroutines. (ADR-0008) | Une event-loop par worker absorbe des centaines de requêtes concurrentes vs ~10 sur des workers sync — même hardware, débit ×10. |
+| **Rigueur des tests** | 127 tests unit + 8 hypothesis property-based (ont trouvé 2 vrais bugs pendant l'écriture) + 5 tests d'intégration kafka_client via testcontainers + pytest-benchmark sur les hot paths (JWT 9µs, bcrypt 280ms). Couverture 90.21% avec gate bloquant `--cov-fail-under=90`. | La couverture n'est pas du chiqué — la gate fait échouer la CI ; le property-based attrape les edge cases que les tests par exemple ratent. |
+| **Frontières architecturales** | `import-linter` enforce 4 contrats : config-leaf, indépendance db↔kafka, indépendance des adapters d'intégration, observability-leaf. La CI échoue sur violation. (ADR-0007 §5) | La flexibilité d'import de Python = risque de drift ; l'enforcement par tooling > la bonne volonté du reviewer. |
+| **Supply chain sécurité** | JWT (pyjwt) + rotation bcrypt 5.x, **gate dur pip-audit** (3 CVEs attrapés pendant le dev), gitleaks secret scan, exit-tickets datés `--ignore-vuln`, règles OWASP via ruff bandit. | Le pinning, c'est la moitié — savoir quand une version pinnée devient vulnérable, c'est l'autre moitié. |
+| **Observabilité** | OTel SDK → Collector → LGTM ; logs JSON structlog ; métriques starlette-prometheus ; **3 SLOs as code via Sloth** avec alerting multi-window multi-burn-rate (Google SRE Workbook). (ADR-0012) | « Sommes-nous dans les clous ce mois-ci ? » devient une question objective avec un dashboard Grafana. |
+| **Modernisation outillage** | `uv` remplace pip + setuptools + virtualenv + pyenv (5-10× plus rapide, lockfile cross-platform). Syntaxe de typage PEP 695. (ADR-0009) | Reste à la pointe de l'outillage Python ; démontre la capacité à évaluer + adopter les nouveaux leaders de l'écosystème. |
+| **Parité Java** | Mêmes 3 SLOs, même contrat Kafka, même baseline sécurité que le frère Java. Le submodule partagé (`mirador-service-shared`) enforce le plancher commun. | Démontre la capacité à garder plusieurs implémentations stack cohérentes sans verrouillage monorepo. |
+
 ## Pile technique
 
 | Couche | Technologie | Équivalent Java |
 |---|---|---|
-| Framework web | **FastAPI** 0.115 | Spring Boot 4 Web MVC |
+| Framework web | **FastAPI** 0.136 | Spring Boot 4 Web MVC |
 | DTO + validation | **Pydantic** v2.11 | Jackson + Bean Validation |
 | ORM | **SQLAlchemy** 2.0 async | Spring Data JPA / Hibernate |
 | Migrations | **Alembic** 1.14 | Flyway |
 | Auth JWT | **pyjwt** + **bcrypt** 5.x | Spring Security + jjwt |
-| Kafka | **aiokafka** 0.12 | Spring Kafka |
+| Kafka | **aiokafka** 0.13 | Spring Kafka |
 | Redis | **redis-py** 5.2 (asyncio) | Spring Data Redis |
 | Observabilité | **OpenTelemetry SDK** + Prometheus | Micrometer + OTel SDK |
+| **SLO/SLA-as-code** | **Sloth** + multi-burn-rate | Sloth (miroir) |
 | Logging | **structlog** | Logback + structured logging |
 | Rate limiting | **slowapi** | bucket4j |
-| Cron | **APScheduler** | @Scheduled |
-| Gestionnaire de paquets | **uv** | Maven |
-| Tests | **pytest** + **pytest-asyncio** | JUnit 5 + Mockito |
-| Lint / Format | **ruff** + **mypy** | Checkstyle + SpotBugs + PMD |
-| Tests d'archi | **import-linter** | ArchUnit |
+| Gestionnaire de paquets | **uv** (Astral) | Maven |
+| Tests | **pytest** + **pytest-asyncio** + **hypothesis** | JUnit 5 + Mockito |
+| Property-based | **hypothesis** | jqwik |
+| Benchmarks | **pytest-benchmark** | JMH |
+| Lint / Format | **ruff** + **mypy** strict | Checkstyle + SpotBugs + PMD |
+| Tests d'archi | **import-linter** (4 contrats) | ArchUnit |
+| Scan CVE | **pip-audit** | OWASP Dependency-Check |
 | Tests conteneurs | **testcontainers-python** | Testcontainers |
-| Docker | multi-stage + uvicorn | multi-stage + Spring Boot |
+| Docker | multi-stage + uvicorn (Py 3.14 slim) | multi-stage + Spring Boot |
 
 ## Démarrage rapide
 
@@ -147,6 +179,27 @@ bin/              # Scripts d'ops (run.sh, demo-up.sh, etc.)
 - `GET /actuator/info` — métadonnées runtime
 - `GET /actuator/prometheus` — endpoint scrape métriques
 - `GET /actuator/quality` — signaux qualité de code agrégés
+- `POST /mcp/` — transport streamable-http Model Context Protocol (voir [README EN](README.md#ai-integration-via-mcp))
+
+## Intégration IA via MCP
+
+Miroir de [ADR-0062](https://gitlab.com/mirador1/mirador-service-java/-/blob/main/docs/adr/0062-mcp-server-tool-exposure-per-method.md)
+du frère Java — Mirador expose un serveur
+[Model Context Protocol](https://modelcontextprotocol.io/) in-process sur
+`/mcp/`. Un client LLM (Claude Desktop, `claude mcp add`, l'Inspecteur MCP)
+se connecte avec le même JWT que l'API REST et obtient un catalogue typé
+de 14 outils sans nouvelle plomberie HTTP.
+
+**Contrainte architecturale** : le backend reste infrastructure-agnostic
+— ZÉRO client HTTP vers Loki / Mimir / Grafana / GitLab / GitHub /
+kubectl dans le process FastAPI. Uniquement ce que le backend produit
+DÉJÀ in-process : ring buffer `logging` Python, REGISTRY
+`prometheus_client`, OpenAPI auto-généré FastAPI, et le domaine
+Order/Product/Customer.
+
+Voir le [README EN](README.md#ai-integration-via-mcp) pour la table
+détaillée des 14 outils, les contrôles d'auth/audit/redaction, et le
+flow démo de 60 secondes (commandes shell quasi-identiques).
 
 ## Philosophie compat
 
@@ -169,3 +222,5 @@ matrix CI informationnelle. Python 3.11 abandonné 2026-04-25 (EOL 2027-10).
 ## Licence
 
 MIT
+</content>
+</invoke>
