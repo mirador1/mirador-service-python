@@ -2,6 +2,22 @@
 
 <sub>**English** · [Français](README.fr.md)</sub>
 
+> **What this project demonstrates mastery of**
+>
+> _A 30-second skim of the central themes of current backend mastery — each axis
+> is verified at every `stable-py-v*` tag. Source of truth for what "this rev guarantees" :
+> `git show stable-py-vX.Y.Z`._
+>
+> - 🤖 **IA** — FastMCP server (Anthropic's `mcp[cli]≥1.27`) + streamable-http transport mounted at `/mcp` + 14 in-process tools mirroring the Java backend (per-method `@tool` decorators, Pydantic v2 frozen DTOs) + audit log per tool call (`MCP_TOOL_CALL` action) + idempotency cache on `create_order` + role-based authz (`require_role(ROLE_ADMIN)`).
+> - 🔒 **Sécurité** — JWT HS256 (15 min, refresh-token rotation) + **X-API-Key middleware** (parity with Java's `ApiKeyAuthenticationFilter`, default `demo-api-key-2026`) + RBAC (`ROLE_ADMIN` / `ROLE_USER`, both granted on API-key path) + DNS-rebinding host guard + env-var redaction `(?i).*(password|secret|token|key|credential).*` + pip-audit hard gate (no `allow_failure` shield).
+> - 🧠 **Fonctionnel** — Customer onboarding & enrichment (JSONPlaceholder lookup + Ollama LLM bio generation) + Order / Product / OrderLine domain (6 invariants from shared ADR-0059, enforced via 8 Hypothesis property-based tests) + Kafka audit events + diagnostic incident endpoints (`slow-query`, `db-failure`, `kafka-timeout`).
+> - ☁️ **Infrastructure & Cloud** — Docker image (412 MB on debian-slim ; alpine blocked on pydantic_core / cryptography / bcrypt musl wheels) + GKE deploy via the same chart family as the Java sibling + Workload Identity Federation + Postgres asyncpg + Kafka aiokafka + Redis async client.
+> - 📊 **Observabilité** — OpenTelemetry traces + logs + metrics → LGTM stack (Tempo / Loki / Mimir / Grafana) + `starlette-prometheus` exporter + 3 SLOs as code via Sloth (mirror Java) + multi-burn-rate alerting + 4 dashboards (SLO overview, Apdex, latency heatmap, SLO breakdown by `path_template`) + chaos-driven SLO demo annotations + 3 runbooks.
+> - ✅ **Qualité** — `pytest --cov-fail-under=90` blocking gate (~308 unit + integration tests, 94.59 % coverage on full suite) + `mypy --strict` + `ruff check` + `ruff format --check` + `import-linter` (Python's ArchUnit) + Hypothesis property-based tests + Testcontainers (Postgres) + asgi-lifespan + 19 dedicated tests for the X-API-Key middleware.
+> - 🔄 **CI/CD** — GitLab CI 9 jobs across `lint / test / integration / package / sonar / pages` stages + compat matrix Python 3.12 / 3.13 / 3.14 (manual) + Conventional Commits (lefthook + commitlint) + auto-merge with `--remove-source-branch=false` + pip-audit hard gate + import-linter + Renovate weekly bumps + GitHub mirror push on tag.
+> - 🏛 **Architecture** — Feature-slicing under `src/mirador_service/{customer, order, product, mcp, auth, …}` (mirrors Java's package structure) + per-method MCP `@tool` exposure (ADR-0062, "produces vs accesses" rule — NO HTTP clients to Loki / Mimir / Grafana / GitLab / kubectl in this Python jar) + polyrepo flat α submodules (ADR-0060) + Clean Code 7 non-negotiables.
+> - 🛠 **DevX** — `uv` (astral, 100× faster than pip) + Lefthook commit-msg + pre-push hooks + `bin/dev/api-smoke.sh` (Hurl flows) + scheduled tasks for dated TODOs + integration-tests + sonarcloud flip-gates audit (5-consecutive-green criterion tracked in `TASKS.md`) + Renovate + Conventional Commits CI template (shared via `infra/common/`).
+
 [![pipeline](https://gitlab.com/mirador1/mirador-service-python/badges/main/pipeline.svg)](https://gitlab.com/mirador1/mirador-service-python/-/pipelines)
 [![coverage](https://img.shields.io/badge/coverage-90.21%25-success)](https://gitlab.com/mirador1/mirador-service-python/-/pipelines)
 [![Python 3.14](https://img.shields.io/badge/Python-3.14_+_3.13_3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
