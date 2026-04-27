@@ -20,19 +20,25 @@ here ; done items removed (use `git tag -l` for history).
 
 ## 🤔 À considérer (lower priority)
 
-- 🟢 **Flip integration-tests CI job to required** (`allow_failure:
-  false`) : currently informational. Acceptance criterion : 5 consecutive
-  green runs of `integration-tests` on main. The new
-  `test_kafka_client_lifecycle.py` is the reference — once stable, gate.
+- 🚫 **Flip integration-tests CI job to required** (`allow_failure:
+  false`) : currently 0 / 23 consecutive green runs on main (audited
+  2026-04-27). Both root causes need to be fixed BEFORE flipping :
+  (1) testcontainers-ryuk 409 conflict on the local runner — leftover
+  ryuk container from a prior run blocks the new test session ;
+  needs `docker rm $(docker ps -aq --filter name=testcontainers-ryuk)`
+  added to the runner's pre-job hook OR `TESTCONTAINERS_RYUK_DISABLED=true`
+  on the job ; (2) `test_kafka_*` integration tests connect to Kafka
+  but the job's `services:` block only declares `postgres` —
+  add Kafka via testcontainers-kafka (already imported) OR via
+  GitLab `services:` with the right alias.
 
-- 🟢 **Flip pip-audit CVE gate to enforcing** : currently set as hard
-  gate (no allow_failure) but only ignores `CVE-2026-3219` (pip
-  bundled, no fix yet). Re-check monthly. Remove the `--ignore-vuln`
-  flag once pip ships the patched version.
-
-- 🟢 **Flip sonarcloud to required** (`allow_failure: false` →
-  remove the line) : after first 5 green runs (TODO date 2026-05-25
-  in `.gitlab-ci/quality.yml`).
+- 🚫 **Flip sonarcloud to required** (`allow_failure: false` →
+  remove the line) : `sonarcloud` job is rule-skipped on every main
+  pipeline because `SONAR_TOKEN` is not set at the project / group
+  level. 0 / 23 actual runs on main (audited 2026-04-27). To unblock :
+  set `SONAR_TOKEN` (group var, masked, protected) ; observe 5
+  consecutive green runs ; THEN flip. Keep the dated TODO 2026-05-25
+  in quality.yml as a re-check trigger.
 
 - 🟢 **Migrate Java's `jvm.config` Comments rule to Python's
   `pytest.ini_options`** : adopt the same dated-TODO comment pattern
@@ -41,41 +47,15 @@ here ; done items removed (use `git tag -l` for history).
 ## 📊 SLO/SLA backlog (post Quick wins ADR-0058)
 
 Quick wins SHIPPED 2026-04-25 : 3 SLOs as code (Sloth) + multi-burn-rate
-alerting + Grafana SLO dashboard + ADR-0058 + sla.md. Below = next iterations.
+alerting + Grafana SLO dashboard + ADR-0058 + sla.md.
 
-- 🟢 **Dashboard "SLO breakdown by endpoint"** : current dashboard shows
-  service-wide SLO. Add a 2nd dashboard (or panel row) sliced by
-  `path_template` to identify which endpoints contribute most to the
-  budget burn. Useful when an SLO breach happens — answers "which
-  endpoint is dragging us down ?".
-
-- 🟢 **Chaos-driven SLO demo** : wire `/customers/diagnostic/slow-query`
-  + `db-failure` + `kafka-timeout` to intentionally burn budget for
-  demo purposes. A "demo mode" Grafana annotation that overlays the
-  burn rate timeseries with the chaos test markers. Sells the
-  observability story in 30 seconds.
-
-- 🟢 **Runbook section "What to do when SLO breached"** :
-  `docs/runbooks/slo-availability.md`, `slo-latency.md`, `slo-enrichment.md`
-  (URLs already referenced in `slo.yaml` annotations). Each : symptoms,
-  first investigation steps, common root causes, escalation path,
-  rollback procedure. Currently empty — links 404 on Alertmanager.
-
-- 🟢 **Latency heatmap par endpoint** : Grafana panel using histogram
-  `_bucket` series, x=time × y=latency-bucket, color=request count.
-  Shows tail-latency distribution in one glance — complement to p99
-  SLO compliance.
-
-- 🟢 **Apdex score dashboard** : add `Apdex(0.5s, 2s)` calculation to
-  the SLO dashboard. Apdex = (satisfied + tolerating/2) / total.
-  Single number that captures "user satisfaction" — easier to
-  communicate to non-SRE stakeholders than 3 separate SLOs.
-
-- 🟢 **Monthly SLO review meeting cadence** : document in
-  `docs/slo/review-cadence.md`. What to bring (compliance %, top burn
-  contributors, capacity changes, deploy correlation), who attends,
-  what's the output (tighten/relax SLO, error budget policy update).
-  Currently NOT documented — remove from `sla.md` claim or implement.
+Iteration-2 SHIPPED 2026-04-27 in [stable-py-v0.6.8](https://gitlab.com/mirador1/mirador-service-python/-/tags/stable-py-v0.6.8) :
+- ✅ SLO breakdown by endpoint dashboard (`infra/observability/grafana-dashboards/slo-breakdown-by-endpoint.json`) — top 10 endpoints by 5xx rate / p99 latency / request rate / budget burn share.
+- ✅ Latency heatmap dashboard — service-wide + per-endpoint via `path_template` variable.
+- ✅ Apdex dashboard — gauge + breakdown + over-time view.
+- ✅ Chaos-driven SLO demo wiring — 3 chaos annotations on the breakdown dashboard + `docs/slo/chaos-demo.md` step-by-step guide.
+- ✅ 3 runbooks (`slo-availability.md`, `slo-latency.md`, `slo-enrichment.md`) — already populated in stable-py-v0.6.6, links no longer 404.
+- ✅ `docs/slo/review-cadence.md` thin pointer to the cross-language shared cadence doc.
 
 ## 🎨 README polish (post 2026-04-25 review)
 

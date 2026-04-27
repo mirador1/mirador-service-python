@@ -30,19 +30,16 @@ pip-audit:
   before_script:
     - uv sync --all-extras --frozen
   script:
-    # Audit the active virtualenv (= what uv actually installed). --strict
-    # fails on ANY vuln. --ignore-vuln carries dated exit-tickets for vulns
-    # we can't fix yet (no upstream fix released).
+    # Audit the active virtualenv (= what uv actually installed). pip-audit
+    # returns non-zero on ANY vuln — no --strict flag needed (that's the
+    # default). The trailing "Skip Reason" line for our own mirador-service
+    # package is informational, doesn't break the exit code.
     #
-    # CVE-2026-3219 (pip 26.0.1) — bundled in uv's Python distribution,
-    #   no fix released upstream as of 2026-04-25. Re-check monthly ;
-    #   remove this ignore once pip ships the patched version. Risk is
-    #   low : pip is only invoked by pip-audit itself + as a fallback,
-    #   not by the running app.
-    # pip-audit returns non-zero on any vuln (no --strict needed for that —
-    # it's the default). The trailing "Skip Reason" line for our own
-    # mirador-service package is informational, doesn't break the exit code.
-    - uv run pip-audit --ignore-vuln CVE-2026-3219
+    # No --ignore-vuln flags currently carried — CVE-2026-3219 (pip 26.0.1)
+    # was the last shield, dropped 2026-04-27 after pip 26.1 shipped the fix.
+    # Re-add a dated `--ignore-vuln <ID>` line ONLY for vulns with no upstream
+    # fix released ; comment the date + recheck cadence.
+    - uv run pip-audit
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"

@@ -90,7 +90,7 @@
           "refId": "A"
         }
       ],
-      "title": "Latency heatmap — endpoint $uri (1m bucket)",
+      "title": "Latency heatmap — endpoint $path_template (1m bucket)",
       "type": "heatmap"
     }
   ],

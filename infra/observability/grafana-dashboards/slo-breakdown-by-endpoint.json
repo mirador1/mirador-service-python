@@ -1,5 +1,44 @@
 {
-  "annotations": {"list": []},
+  "annotations": {
+    "list": [
+      {
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "enable": true,
+        "iconColor": "rgba(255, 96, 0, 0.9)",
+        "name": "Chaos — slow-query",
+        "expr": "changes(starlette_requests_total{job=\"mirador-service-python\",path_template=\"/customers/diagnostic/slow-query\"}[1m]) > 0",
+        "step": "1m",
+        "tagKeys": "path_template",
+        "titleFormat": "Chaos: slow-query",
+        "textFormat": "Synthetic latency injection — see customer/diagnostic_router.py#slow_query. Burns latency budget.",
+        "useValueForTime": false
+      },
+      {
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "enable": true,
+        "iconColor": "rgba(220, 53, 69, 0.9)",
+        "name": "Chaos — db-failure (5xx)",
+        "expr": "changes(starlette_requests_total{job=\"mirador-service-python\",path_template=~\"/customers.*\",status=~\"5..\"}[1m]) > 0",
+        "step": "1m",
+        "tagKeys": "path_template,status",
+        "titleFormat": "Chaos: 5xx burst",
+        "textFormat": "Customer endpoint returned 5xx — DB / Kafka / circuit-breaker open. Burns availability budget.",
+        "useValueForTime": false
+      },
+      {
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "enable": true,
+        "iconColor": "rgba(108, 117, 125, 0.9)",
+        "name": "Chaos — kafka-timeout (504)",
+        "expr": "changes(starlette_requests_total{job=\"mirador-service-python\",path_template=~\".*enrich.*|.*kafka-timeout.*\",status=\"504\"}[1m]) > 0",
+        "step": "1m",
+        "tagKeys": "path_template,status",
+        "titleFormat": "Chaos: enrichment 504",
+        "textFormat": "Kafka request-reply timed out (synthetic or real) — burns enrichment SLO budget.",
+        "useValueForTime": false
+      }
+    ]
+  },
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -139,7 +178,7 @@
       "targets": [
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "topk(10,\n  sum by (path_template) (rate(starlette_requests_total{job=\"mirador-service-python\",status=~\"5..\"}[5m]))\n  /\n  ignoring (uri) group_left sum(rate(starlette_requests_total{job=\"mirador-service-python\"}[5m]))\n)",
+          "expr": "topk(10,\n  sum by (path_template) (rate(starlette_requests_total{job=\"mirador-service-python\",status=~\"5..\"}[5m]))\n  /\n  ignoring (path_template) group_left sum(rate(starlette_requests_total{job=\"mirador-service-python\"}[5m]))\n)",
           "legendFormat": "{{ path_template }}",
           "refId": "A"
         }
