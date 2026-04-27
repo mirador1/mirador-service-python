@@ -271,7 +271,17 @@ markers = [
 
 [tool.coverage.run]
 source = ["src"]
-omit = ["*/migrations/*", "*/conftest.py"]
+omit = [
+    "*/migrations/*",
+    "*/conftest.py",
+    # mirador_service/ml/* — opt-in [ml] extra. The default unit-tests
+    # job runs WITHOUT --extra ml (torch is 500+ MB ; pulling it for
+    # every CI run would 5x the install time). Tests for the ml package
+    # live in tests/ml/ and run with the extra installed ; their
+    # coverage is measured separately. Including ml/* in the global
+    # coverage gate would always fail at 0% on the unit-tests job.
+    "*/mirador_service/ml/*",
+]
 # greenlet : SQLAlchemy async uses greenlets internally to bridge async ↔
 # sync. Without this hook coverage misses every line invoked via
 # session.execute / session.flush — which makes router bodies (heavy
