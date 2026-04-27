@@ -57,27 +57,18 @@ Iteration-2 SHIPPED 2026-04-27 in [stable-py-v0.6.8](https://gitlab.com/mirador1
 - ✅ 3 runbooks (`slo-availability.md`, `slo-latency.md`, `slo-enrichment.md`) — already populated in stable-py-v0.6.6, links no longer 404.
 - ✅ `docs/slo/review-cadence.md` thin pointer to the cross-language shared cadence doc.
 
-## 🎨 README polish (post 2026-04-25 review)
+## 🎨 README polish
 
-Captured from portfolio review session feedback :
+Major sync wave **shipped 2026-04-27** :
+- ✅ README.fr.md mastery block + 8-row matrix ([!41](https://gitlab.com/mirador1/mirador-service-python/-/merge_requests/41))
+- ✅ mkdocs landing refresh ([!42](https://gitlab.com/mirador1/mirador-service-python/-/merge_requests/42))
+- The English README already had the senior-architect matrix on main ; no separate "add it to Python" item left.
 
-- 🟢 **README.fr.md sync** : Python README.md got a major rewrite 2026-04-25
-  (badges + TL;DR for hiring managers + Sloth/SLO badges + tech stack with
-  hypothesis/pip-audit/Sloth + "Industrial Customer onboarding" reframing).
-  The French version still reflects the old structure — sync needed.
-
-- 🟢 **Add "What this proves for a senior backend architect" matrix** :
-  Java README has it (8-row Concern × Demonstration × Production rationale).
-  Python TL;DR exists but the full matrix doesn't — add the equivalent
-  Python-specific table (mypy strict + cov 90% + hypothesis + import-linter
-  + pip-audit + SLO + kafka_client integration tests).
-
-- 🟢 **Mini-domain rename consideration** : same as Java side — narrative
-  reframing in README done, code still uses `Customer*` classes. Defer.
-
-- 🟢 **mkdocs landing page refresh** : `docs/index.md` should mirror the
-  new README structure (TL;DR + senior architect matrix). Currently shows
-  old "Customer service demo" framing.
+Remaining (low priority) :
+- 🟢 **Mini-domain rename consideration** : `Customer*` classes still
+  named after the old framing. Refactor 50+ files when there's a real
+  recruiter signal that the term feels generic. Narrative in README
+  is enough today.
 
 ## 🎯 Surface fonctionnelle — entités e-commerce
 
@@ -89,22 +80,26 @@ Foundation **shippée 2026-04-26** dans [stable-py-v0.6.4](https://gitlab.com/mi
 
 ### Reste à compléter (post-foundation)
 
-- ✅ **ADR data model** — landed 2026-04-26 in shared as
-  [shared ADR-0059](https://gitlab.com/mirador1/mirador-service-shared/-/blob/main/docs/adr/0059-customer-order-product-data-model.md)
-  (cross-language : Java + Python + UI). Documents 6 invariants for Hypothesis property tests.
-- ☐ **Coverage ≥ 90 %** sur `src/mirador_service/{order,product}/` —
-  cf. ADR-0014. Si manque, combler avec property tests Hypothesis.
+Wave **shippée 2026-04-27** :
+- ✅ ADR data model (shared ADR-0059)
+- ✅ `bin/dev/api-smoke.sh` POST /orders + 2 lines + GET + DELETE + total assertion + new PUT /orders/{id}/status flow ([!44](https://gitlab.com/mirador1/mirador-service-python/-/merge_requests/44))
+- ✅ Server-side product search ([!40](https://gitlab.com/mirador1/mirador-service-python/-/merge_requests/40))
+- ✅ PUT /orders/{id}/status state-machine endpoint ([!43](https://gitlab.com/mirador1/mirador-service-python/-/merge_requests/43))
+- ✅ GET /products/{id}/orders ([!45](https://gitlab.com/mirador1/mirador-service-python/-/merge_requests/45))
+
+Remaining :
 - ☐ **Property-based tests Hypothesis** (cf. ADR-0011 §"Where to use") :
   `total_amount == sum(l.quantity * l.unit_price_at_order for l in lines)`,
   `stock_quantity ≥ 0`, immutabilité `unit_price_at_order`,
-  transitions `Order.status` valides.
+  transitions `Order.status` valides. Scheduled for the
+  [java-ecommerce-coverage-batch](file:///Users/benoitbesson/.claude/scheduled-tasks/java-ecommerce-coverage-batch/SKILL.md)
+  agent (2026-05-04 ; covers Java + Python parallel).
 - ☐ **pytest-asyncio integration tests** (`tests/integration/`) :
   full HTTP roundtrip via `httpx.AsyncClient` + Postgres testcontainer ;
   POST /orders avec 2 OrderLines + assert total recalculé ; DELETE /orders/{id}
-  cascade sur OrderLines.
+  cascade sur OrderLines. Currently blocked by the testcontainers ryuk
+  issue on the local runner (see "À considérer" above).
 - ☐ **`stability-check.sh` section 3** doit afficher 🟢 sur le nouveau code.
-- ☐ **`bin/dev/api-smoke.sh`** : ajouter POST /orders avec 2 OrderLines,
-  GET, DELETE, vérifier total.
 
 ### Cross-repo coordination (ADR-0001 polyrepo)
 
