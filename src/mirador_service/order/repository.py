@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mirador_service.order.models import Order
+from mirador_service.order.order_line_models import OrderLine
 
 
 class OrderRepository:
@@ -38,3 +39,45 @@ class OrderRepository:
         await self.session.delete(order)
         await self.session.flush()
         return True
+
+    async def list_by_product_id(
+        self,
+        product_id: int,
+        page: int,
+        size: int,
+    ) -> tuple[list[Order], int]:
+        """All orders that contain at least one line for ``product_id``.
+
+        Replaces the UI-side fan-out previously implemented as "list 50
+        recent orders + filter client-side" in
+        ``ProductDetailComponent#findConsumerOrders``. Server-side filter
+        keeps the query bounded regardless of order volume.
+
+        Uses ``DISTINCT`` since a single order may contain multiple lines
+        for the same product (rare — re-order scenario where the user
+        added the same product twice with different quantities). Without
+        ``DISTINCT`` that order would appear twice in the page.
+
+        Order is by ``Order.id`` DESC (newest first) — same default the
+        plain ``list_paginated`` uses, so the two endpoints feel
+        consistent on the consumer side.
+        """
+        offset = page * size
+        items_stmt = (
+            select(Order)
+            .join(OrderLine, OrderLine.order_id == Order.id)
+            .where(OrderLine.product_id == product_id)
+            .order_by(Order.id.desc())
+            .offset(offset)
+            .limit(size)
+            .distinct()
+        )
+        count_stmt = (
+            select(func.count(func.distinct(Order.id)))
+            .select_from(Order)
+            .join(OrderLine, OrderLine.order_id == Order.id)
+            .where(OrderLine.product_id == product_id)
+        )
+        items = (await self.session.execute(items_stmt)).scalars().all()
+        total = (await self.session.execute(count_stmt)).scalar_one()
+        return list(items), total
