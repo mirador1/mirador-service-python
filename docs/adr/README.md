@@ -7,7 +7,7 @@ ADR template](https://cognitect.com/blog/2011/11/15/documenting-architecture-dec
 For **cross-cutting decisions** that bind the Java + Python repos
 together (e.g. observability stack choice, Sloth for SLOs, Renovate
 base preset), see the shared submodule's
-[`infra/shared/docs/adr/`](../../infra/shared/docs/adr/).
+[`infra/shared/docs/adr/`](https://gitlab.com/mirador1/mirador-service-shared/-/tree/main/docs/adr/).
 
 ## Status snapshot
 
@@ -74,4 +74,4 @@ in CI).
 
 - [`https://gitlab.com/mirador1/mirador-service-python/-/blob/main/bin/dev/regen-adr-index.sh`](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/bin/dev/regen-adr-index.sh) — regenerator
 - [`https://gitlab.com/mirador1/mirador-service-python/-/blob/main/bin/dev/stability-check.sh`](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/bin/dev/stability-check.sh) — preflight (catches drift)
-- [shared/docs/adr/](../../infra/shared/docs/adr/) — cross-cutting ADRs
+- [shared/docs/adr/](https://gitlab.com/mirador1/mirador-service-shared/-/tree/main/docs/adr/) — cross-cutting ADRs
