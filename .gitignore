@@ -75,3 +75,4 @@ target/
 # OS
 Thumbs.db
 site/
+.claude/

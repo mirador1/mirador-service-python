@@ -123,3 +123,79 @@ async def test_pagination(client: AsyncClient) -> None:
     assert body["total"] == 5
     assert body["page"] == 0
     assert body["size"] == 2
+
+
+# ── PUT /orders/{id}/status (state-machine) ─────────────────────────────────
+
+
+async def _create_customer(client: AsyncClient, name: str = "Buyer") -> int:
+    response = await client.post(
+        "/customers",
+        json={"name": name, "email": f"{name.lower()}@example.com"},
+    )
+    assert response.status_code == 201
+    return int(response.json()["id"])
+
+
+@pytest.mark.asyncio
+async def test_update_status_valid_transition_returns_200(client: AsyncClient) -> None:
+    """PENDING → CONFIRMED is allowed by the state machine."""
+    cid = await _create_customer(client, "Alice")
+    created = await client.post("/orders", json={"customer_id": cid})
+    oid = created.json()["id"]
+    assert created.json()["status"] == "PENDING"
+
+    response = await client.put(f"/orders/{oid}/status", json={"status": "CONFIRMED"})
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "CONFIRMED"
+
+
+@pytest.mark.asyncio
+async def test_update_status_unknown_id_returns_404(client: AsyncClient) -> None:
+    """404 on a non-existent order id."""
+    response = await client.put("/orders/99999/status", json={"status": "CONFIRMED"})
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_status_forbidden_transition_returns_409(client: AsyncClient) -> None:
+    """SHIPPED → PENDING violates the state machine."""
+    cid = await _create_customer(client, "Bob")
+    created = await client.post("/orders", json={"customer_id": cid})
+    oid = created.json()["id"]
+    # Walk through valid transitions to reach SHIPPED.
+    await client.put(f"/orders/{oid}/status", json={"status": "CONFIRMED"})
+    await client.put(f"/orders/{oid}/status", json={"status": "SHIPPED"})
+
+    response = await client.put(f"/orders/{oid}/status", json={"status": "PENDING"})
+
+    assert response.status_code == 409
+    body = response.json()["detail"]
+    assert body["currentStatus"] == "SHIPPED"
+    assert body["targetStatus"] == "PENDING"
+
+
+@pytest.mark.asyncio
+async def test_update_status_self_transition_idempotent(client: AsyncClient) -> None:
+    """PENDING → PENDING is allowed (retry-safe)."""
+    cid = await _create_customer(client, "Carol")
+    created = await client.post("/orders", json={"customer_id": cid})
+    oid = created.json()["id"]
+
+    response = await client.put(f"/orders/{oid}/status", json={"status": "PENDING"})
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "PENDING"
+
+
+@pytest.mark.asyncio
+async def test_update_status_unknown_value_returns_422(client: AsyncClient) -> None:
+    """Pydantic Literal rejects gibberish at the boundary."""
+    cid = await _create_customer(client, "Dave")
+    created = await client.post("/orders", json={"customer_id": cid})
+    oid = created.json()["id"]
+
+    response = await client.put(f"/orders/{oid}/status", json={"status": "DELIVERED"})
+
+    assert response.status_code == 422

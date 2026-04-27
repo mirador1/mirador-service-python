@@ -27,6 +27,18 @@ class OrderCreate(BaseModel):
     customer_id: Annotated[int, Field(gt=0)]
 
 
+class OrderStatusUpdate(BaseModel):
+    """`PUT /orders/{id}/status` body — single status field.
+
+    Pydantic's Literal validation rejects unknown statuses with a 422
+    BEFORE the controller runs, so the state-machine check inside
+    OrderStatus.can_transition_to() only has to worry about VALID
+    target statuses (no need to handle gibberish).
+    """
+
+    status: OrderStatusLiteral
+
+
 class OrderResponse(BaseModel):
     """Outbound representation. Header only — line list comes once
     OrderLine entity ships."""

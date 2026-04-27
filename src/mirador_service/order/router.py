@@ -14,7 +14,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mirador_service.db.base import get_db_session
-from mirador_service.order.dtos import OrderCreate, OrderPage, OrderResponse
+from mirador_service.order.dtos import (
+    OrderCreate,
+    OrderPage,
+    OrderResponse,
+    OrderStatusUpdate,
+)
 from mirador_service.order.models import Order, OrderStatus
 from mirador_service.order.repository import OrderRepository
 
@@ -70,6 +75,52 @@ async def create_order(payload: OrderCreate, session: DbSession) -> OrderRespons
             detail=f"Customer {payload.customer_id} not found",
         ) from exc
     return OrderResponse.from_orm_entity(saved)
+
+
+@router.put("/{order_id}/status", response_model=OrderResponse)
+async def update_order_status(
+    order_id: int,
+    payload: OrderStatusUpdate,
+    session: DbSession,
+) -> OrderResponse:
+    """Update an order's status — state-machine validated.
+
+    Mirrors Java's PUT /orders/{id}/status exactly :
+    - 200 + updated OrderResponse on valid transition.
+    - 404 if the order doesn't exist.
+    - 409 ProblemDetail-shaped body on forbidden transition (current
+      and target statuses surfaced so the UI can render a meaningful
+      error).
+    - 422 if the status is unknown (Pydantic Literal validation).
+
+    State graph (per `OrderStatus.can_transition_to`) :
+    PENDING → CONFIRMED, CANCELLED ; CONFIRMED → SHIPPED, CANCELLED ;
+    SHIPPED, CANCELLED → terminal. Self-transitions are allowed
+    (idempotency for retries).
+    """
+    repo = OrderRepository(session)
+    order = await repo.get_by_id(order_id)
+    if order is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+
+    current = OrderStatus(order.status)
+    target = OrderStatus(payload.status)
+    if not current.can_transition_to(target):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "type": "urn:problem:invalid-status-transition",
+                "title": "Invalid order status transition",
+                "detail": f"Cannot transition from {current.value} to {target.value}",
+                "currentStatus": current.value,
+                "targetStatus": target.value,
+            },
+        )
+
+    order.status = target.value
+    await session.flush()
+    await session.refresh(order)
+    return OrderResponse.from_orm_entity(order)
 
 
 @router.delete("/{order_id}", status_code=status.HTTP_204_NO_CONTENT)
