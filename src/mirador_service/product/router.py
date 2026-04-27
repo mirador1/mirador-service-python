@@ -13,6 +13,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mirador_service.db.base import get_db_session
+from mirador_service.order.dtos import OrderPage, OrderResponse
+from mirador_service.order.repository import OrderRepository
 from mirador_service.product.dtos import (
     ProductCreate,
     ProductPage,
@@ -119,3 +121,36 @@ async def delete_product(product_id: int, session: DbSession) -> None:
     repo = ProductRepository(session)
     if not await repo.delete(product_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+
+
+@router.get("/{product_id}/orders", response_model=OrderPage)
+async def list_orders_for_product(
+    product_id: int,
+    session: DbSession,
+    page: Annotated[int, Query(ge=0)] = 0,
+    size: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> OrderPage:
+    """Paginated list of orders that contain at least one line for this product.
+
+    Replaces the UI-side fan-out previously implemented as "list 50 recent
+    orders + filter client-side" in
+    ``ProductDetailComponent#findConsumerOrders``. Server-side filter keeps
+    the query bounded regardless of order volume.
+
+    Returns 404 if the product itself doesn't exist (avoids silently
+    returning empty results for a typo in the path) ; an empty page is
+    the legitimate result for an existing but unsold product.
+    """
+    product_repo = ProductRepository(session)
+    if await product_repo.get_by_id(product_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    order_repo = OrderRepository(session)
+    items, total = await order_repo.list_by_product_id(
+        product_id=product_id, page=page, size=size
+    )
+    return OrderPage(
+        items=[OrderResponse.from_orm_entity(o) for o in items],
+        total=total,
+        page=page,
+        size=size,
+    )
