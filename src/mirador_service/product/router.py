@@ -145,9 +145,7 @@ async def list_orders_for_product(
     if await product_repo.get_by_id(product_id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
     order_repo = OrderRepository(session)
-    items, total = await order_repo.list_by_product_id(
-        product_id=product_id, page=page, size=size
-    )
+    items, total = await order_repo.list_by_product_id(product_id=product_id, page=page, size=size)
     return OrderPage(
         items=[OrderResponse.from_orm_entity(o) for o in items],
         total=total,
