@@ -40,7 +40,7 @@ import argparse
 import logging
 import sys
 import tomllib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -86,7 +86,7 @@ def _set_global_seed(seed: int) -> None:
 
 def _build_dataset(args: argparse.Namespace, cfg: dict[str, Any]) -> tuple[np.ndarray, np.ndarray]:
     """Return ``(features, labels)`` as numpy float32 arrays."""
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     if args.data_source == "synthetic":
         ds = generate_dataset(n_customers=args.n_customers, seed=cfg["training"]["random_seed"], now=now)
     elif args.data_source == "postgres":

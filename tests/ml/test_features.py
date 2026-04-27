@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 
@@ -14,7 +14,7 @@ from bin.ml.feature_engineering import (
 )
 
 
-_NOW = datetime(2026, 4, 27, tzinfo=timezone.utc)
+_NOW = datetime(2026, 4, 27, tzinfo=UTC)
 
 
 def _customer_row(cid: int, email: str, age_days: int, first_offset: int, last_offset: int) -> dict[str, object]:
@@ -84,8 +84,12 @@ def test_build_features_handles_zero_orders() -> None:
 def test_build_features_is_deterministic_given_same_inputs() -> None:
     """Running build_features twice on the same inputs returns identical rows."""
     customers = pd.DataFrame([_customer_row(1, "a@x.com", age_days=200, first_offset=180, last_offset=10)])
-    orders = pd.DataFrame([{"id": 100, "customer_id": 1, "created_at": _NOW - timedelta(days=5), "total_amount": 10.0}])
-    order_lines = pd.DataFrame([{"id": 1, "order_id": 100, "product_id": 1, "quantity": 1, "unit_price_at_order": 10.0}])
+    orders = pd.DataFrame([
+        {"id": 100, "customer_id": 1, "created_at": _NOW - timedelta(days=5), "total_amount": 10.0},
+    ])
+    order_lines = pd.DataFrame([
+        {"id": 1, "order_id": 100, "product_id": 1, "quantity": 1, "unit_price_at_order": 10.0},
+    ])
 
     f1 = build_features(customers, orders, order_lines, now=_NOW)
     f2 = build_features(customers, orders, order_lines, now=_NOW)

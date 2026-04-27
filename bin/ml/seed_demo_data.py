@@ -28,7 +28,7 @@ unblock training before historical labels exist.
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import NamedTuple
 
@@ -80,7 +80,7 @@ def generate_dataset(
     the dataset stable across CI runs.
     """
     if now is None:
-        now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+        now = datetime(2026, 4, 27, tzinfo=UTC)
 
     rng = np.random.default_rng(seed)
     fake = Faker()

@@ -175,6 +175,13 @@ max-complexity = 10
 # data (S106 hardcoded password, S107 hardcoded password default).
 "tests/**/*.py" = ["S101", "S105", "S106", "S107"]
 
+[tool.ruff.lint.isort]
+# Tell isort the project's first-party modules so import grouping puts them
+# in the right block. Without this, `from bin.ml.* import …` gets classified
+# as third-party (since `bin` is not a default-detected source root) and
+# ruff's I rule flags the import block as misordered.
+known-first-party = ["mirador_service", "bin"]
+
 [tool.mypy]
 python_version = "3.14"
 strict = true
