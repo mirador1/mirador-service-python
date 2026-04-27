@@ -6,7 +6,7 @@ made async since the whole Python service is async-first (cf. ADR-0008).
 
 from __future__ import annotations
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mirador_service.product.models import Product
@@ -18,15 +18,36 @@ class ProductRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def list_paginated(self, page: int, size: int) -> tuple[list[Product], int]:
+    async def list_paginated(
+        self,
+        page: int,
+        size: int,
+        search: str | None = None,
+    ) -> tuple[list[Product], int]:
         """Return (page_items, total_count) for the requested page.
 
         Page is 0-indexed (matches Java's Spring Data default). Size is
         clamped at the router level to avoid pathological queries.
+
+        ``search`` is an optional case-insensitive substring filter on
+        ``name`` + ``description``. Mirrors Java's
+        :meth:`ProductRepository.search`. Whitespace-only / empty values
+        are treated as ``None`` (no filter) so the SQL doesn't degrade
+        to a no-op ``LIKE '%%'`` index scan.
         """
         offset = page * size
-        items_stmt = select(Product).order_by(Product.id).offset(offset).limit(size)
-        count_stmt = select(func.count()).select_from(Product)
+        normalised = search.strip() if search else None
+        if normalised:
+            pattern = f"%{normalised.lower()}%"
+            where = or_(
+                func.lower(Product.name).like(pattern),
+                func.lower(Product.description).like(pattern),
+            )
+            items_stmt = select(Product).where(where).order_by(Product.id).offset(offset).limit(size)
+            count_stmt = select(func.count()).select_from(Product).where(where)
+        else:
+            items_stmt = select(Product).order_by(Product.id).offset(offset).limit(size)
+            count_stmt = select(func.count()).select_from(Product)
         items = (await self.session.execute(items_stmt)).scalars().all()
         total = (await self.session.execute(count_stmt)).scalar_one()
         return list(items), total
