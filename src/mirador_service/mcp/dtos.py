@@ -255,6 +255,8 @@ TOOL_NAMES: tuple[str, ...] = (
     "find_low_stock_products",
     "get_customer_360",
     "trigger_chaos_experiment",
+    # ML inference (Phase C of shared ADR-0061)
+    "predict_customer_churn",
     # Observability (backend-local only)
     "tail_logs",
     "get_metrics",

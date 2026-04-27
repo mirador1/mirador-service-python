@@ -2,7 +2,8 @@
 
 Verifies the wiring contract :
 - the mount path is /mcp (matches Java sibling + ADR-0062)
-- exactly 14 tools are registered
+- exactly 15 tools are registered (14 baseline + predict_customer_churn
+  shipped in Phase C of shared ADR-0061)
 - tool names match the canonical TOOL_NAMES tuple
 - mounting is idempotent (re-call is a no-op)
 """
@@ -21,10 +22,10 @@ def test_mount_path_is_canonical() -> None:
 
 
 @pytest.mark.asyncio
-async def test_mount_registers_14_tools() -> None:
+async def test_mount_registers_15_tools() -> None:
     app = create_app()
     tools = await app.state.mcp_server.list_tools()
-    assert len(tools) == 14
+    assert len(tools) == 15
 
 
 @pytest.mark.asyncio

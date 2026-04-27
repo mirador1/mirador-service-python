@@ -29,6 +29,8 @@ from mirador_service.mcp.mount import mount_mcp_server
 from mirador_service.messaging.kafka_client import start_kafka, stop_kafka
 from mirador_service.middleware.logging import configure_logging
 from mirador_service.middleware.setup import register_middleware
+from mirador_service.ml.predictor_singleton import get_churn_predictor
+from mirador_service.ml.router import router as churn_router
 from mirador_service.observability.otel import init_otel, shutdown_otel
 from mirador_service.order.order_line_router import router as order_line_router
 from mirador_service.order.router import router as order_router
@@ -65,6 +67,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         start_scheduler()
     except Exception as exc:
         logger.warning("scheduler_start_failed reason=%s — refresh-token cleanup disabled", exc)
+    # Eagerly materialise the churn predictor so the model load happens at
+    # boot (not on the first request). Graceful-degradation contract per
+    # shared ADR-0062 — missing file logs a warning but does not raise.
+    try:
+        get_churn_predictor()
+    except Exception as exc:  # noqa: BLE001 — keep app booting on any ML error
+        logger.warning("churn_predictor_init_failed reason=%s — endpoint will return 503", exc)
     yield
     # Shutdown : close in reverse-startup order
     stop_scheduler()
@@ -101,6 +110,7 @@ def create_app() -> FastAPI:
     app.include_router(enrichment_router)
     app.include_router(audit_router)
     app.include_router(diagnostic_router)
+    app.include_router(churn_router)
 
     # Mount the MCP streamable-http server at /mcp/. Done AFTER routers so
     # the OpenAPI summary tool sees the full route catalogue, and BEFORE
