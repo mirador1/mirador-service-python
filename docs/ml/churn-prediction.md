@@ -149,14 +149,14 @@ promotion.
 
 The 8 features + their canonical order (per [shared ADR-0061](https://gitlab.com/mirador1/mirador-service-shared/-/blob/main/docs/adr/0061-customer-churn-prediction.md)
 §"Feature engineering") are the contract — both
-[`mirador_service.ml.inference.extract_features`](../../src/mirador_service/ml/inference.py)
+[`mirador_service.ml.inference.extract_features`](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/src/mirador_service/ml/inference.py)
 (Python runtime, single-customer) and the Java
 [`ChurnFeatureExtractor`](https://gitlab.com/mirador1/mirador-service-java/-/blob/main/src/main/java/com/mirador/ml/ChurnFeatureExtractor.java)
 implement the same logic. Tests on both sides assert determinism
 on golden inputs.
 
 A separate training-side
-[`feature_engineering.build_features`](../../src/mirador_service/ml/feature_engineering.py)
+[`feature_engineering.build_features`](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/src/mirador_service/ml/feature_engineering.py)
 operates on pandas DataFrames (vectorised across millions of
 customers). At inference time we use the lightweight per-customer
 extractor since pandas would only add overhead for one row.
