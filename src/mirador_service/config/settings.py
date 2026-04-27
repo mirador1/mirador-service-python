@@ -19,13 +19,20 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class DatabaseSettings(BaseSettings):
-    """Postgres connection settings."""
+    """Postgres connection settings.
+
+    Defaults match the local-dev `postgres-demo` Docker container that
+    Java and Python share (POSTGRES_USER=demo, POSTGRES_PASSWORD=demo,
+    POSTGRES_DB=customer-service). The Java sibling's `application.yml`
+    uses the same trio. Override in prod via the standard
+    MIRADOR_DB__{HOST,PORT,NAME,USER,PASSWORD} env vars.
+    """
 
     host: str = "localhost"
     port: int = 5432
-    name: str = "mirador"
-    user: str = "mirador"
-    password: str = "mirador"  # noqa: S105 — local dev default, override in prod
+    name: str = "customer-service"
+    user: str = "demo"
+    password: str = "demo"  # noqa: S105 — local dev default, override in prod
 
     @property
     def url(self) -> str:
