@@ -38,12 +38,18 @@
 
 ## Review + tooling
 
-Same as Java side — see [Java SLA](https://gitlab.com/mirador1/mirador-service-java/-/blob/main/docs/slo/sla.md)
-for monthly / quarterly / post-incident review cadence.
+Cadence (monthly compliance pass + quarterly target review +
+post-incident root-cause loop) documented in
+[`review-cadence.md`](review-cadence.md) — thin pointer to the
+cross-language [shared cadence doc](../../infra/shared/docs/slo/review-cadence.md).
+Hands-on demo of the burn-rate alerting in
+[`chaos-demo.md`](chaos-demo.md).
 
 ## References
 
 - [`slo.yaml`](slo.yaml) — Python SLO definitions, source-of-truth.
+- [`review-cadence.md`](review-cadence.md) — review loop entry point.
+- [`chaos-demo.md`](chaos-demo.md) — chaos-driven SLO demo guide.
 - [ADR-0058 in shared](https://gitlab.com/mirador1/mirador-service-shared/-/blob/main/docs/adr/0058-slo-sla-with-sloth.md) — design decisions.
 - [Java SLA](https://gitlab.com/mirador1/mirador-service-java/-/blob/main/docs/slo/sla.md) — sibling service.
 - ADR-0007 (industrial Python practices) — coverage/lint/security baseline that supports the SLO discipline.
