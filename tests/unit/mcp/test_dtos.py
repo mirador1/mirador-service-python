@@ -133,7 +133,8 @@ def test_chaos_and_cancel_results_frozen() -> None:
 
 
 def test_tool_names_canonical_count() -> None:
-    # 7 domain + 7 observability = 14 — matches ADR-0062.
-    assert len(TOOL_NAMES) == 14
+    # 7 domain + 1 ML inference (Phase C) + 7 observability = 15.
+    # Updated 2026-04-27 with predict_customer_churn from shared ADR-0061.
+    assert len(TOOL_NAMES) == 15
     # Tool names are unique (otherwise FastMCP would silently last-write-wins).
-    assert len(set(TOOL_NAMES)) == 14
+    assert len(set(TOOL_NAMES)) == 15

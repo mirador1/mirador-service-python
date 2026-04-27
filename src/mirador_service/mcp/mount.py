@@ -141,13 +141,17 @@ def mount_mcp_server(app: FastAPI) -> FastMCP:
         transport_security=transport_security,
     )
 
-    # 3. Build the Deps closure + register the 14 tools.
+    # 3. Build the Deps closure + register the 15 tools (14 baseline +
+    #    predict_customer_churn from Phase C — see shared ADR-0061).
+    from mirador_service.ml.predictor_singleton import get_churn_predictor
+
     deps = Deps(
         app=app,
         settings=settings,
         session_factory=_default_session_opener,
         ring_buffer=ring,
         metrics_reader=get_metrics_reader(),
+        churn_predictor=get_churn_predictor(),
     )
     register_tools(mcp, deps)
 
@@ -156,7 +160,7 @@ def mount_mcp_server(app: FastAPI) -> FastMCP:
     _wire_mcp_lifespan(app, mcp)
 
     app.state.mcp_server = mcp
-    logger.info("mcp_mounted path=%s tools=14", MCP_MOUNT_PATH)
+    logger.info("mcp_mounted path=%s tools=15", MCP_MOUNT_PATH)
     return mcp
 
 

@@ -1,4 +1,4 @@
-"""MCP tool implementations — 14 tools per ADR-0062.
+"""MCP tool implementations — 15 tools (14 baseline + churn-prediction per ADR-0061 Phase C).
 
 Each tool is a thin async function that :
 
@@ -66,7 +66,15 @@ from mirador_service.mcp.dtos import (
 )
 from mirador_service.mcp.metrics_registry import MetricsRegistryReader
 from mirador_service.mcp.ring_buffer import RingBufferHandler
+from mirador_service.ml.dtos import (
+    ChurnNotFound,
+    ChurnPrediction,
+    ChurnServiceUnavailable,
+)
+from mirador_service.ml.inference import ChurnPredictor, extract_features
+from mirador_service.ml.risk_band import classify_risk
 from mirador_service.order.models import Order, OrderStatus
+from mirador_service.order.order_line_models import OrderLine
 from mirador_service.product.models import Product
 
 logger = logging.getLogger(__name__)
@@ -112,6 +120,7 @@ class Deps:
     session_factory: Callable[[], Awaitable[AsyncSession]]
     ring_buffer: RingBufferHandler
     metrics_reader: MetricsRegistryReader
+    churn_predictor: ChurnPredictor | None = None
 
 
 # ── Tool helpers ──────────────────────────────────────────────────────────────
@@ -343,6 +352,72 @@ async def _chaos_db_failure(deps: Deps) -> ChaosResult:
     )
 
 
+# ── Tool implementations — ML inference (1) ──────────────────────────────────
+
+
+async def predict_customer_churn(
+    deps: Deps,
+    customer_id: int,
+) -> ChurnPrediction | ChurnNotFound | ChurnServiceUnavailable:
+    """Predict churn probability for ``customer_id`` via the loaded ONNX model.
+
+    Soft-error contract — never throws across the MCP boundary :
+
+    - Returns :class:`ChurnServiceUnavailable` if the predictor isn't
+      ready (model file missing). The early-return wins over the
+      not-found path because retrying with a different id wouldn't
+      help — UX is clearer this way (matches Java sibling).
+    - Returns :class:`ChurnNotFound` for missing ids.
+    - Returns :class:`ChurnPrediction` on success.
+
+    Mirrors the Java :class:`com.mirador.ml.ChurnMcpToolService`
+    behaviour exactly so an LLM sees identical shapes regardless of
+    which backend handled the call.
+    """
+    await _audit("predict_customer_churn", {"customer_id": customer_id})
+    if deps.churn_predictor is None or not deps.churn_predictor.is_ready():
+        path = deps.churn_predictor.model_path if deps.churn_predictor is not None else "unconfigured"
+        return ChurnServiceUnavailable(
+            message=f"churn model not loaded (path={path})",
+            hint=(
+                "Provision /etc/models/churn_predictor.onnx via the "
+                "mirador-churn-model ConfigMap (shared ADR-0062), then "
+                "restart the pod or call the future hot-reload endpoint."
+            ),
+        )
+    if customer_id is None:
+        return ChurnNotFound(customer_id=None, message="customer_id is required")
+    async with await deps.session_factory() as session:
+        customer = await session.get(Customer, customer_id)
+        if customer is None:
+            return ChurnNotFound(
+                customer_id=customer_id,
+                message=f"customer {customer_id} not found",
+            )
+        orders = list((await session.execute(select(Order).where(Order.customer_id == customer_id))).scalars().all())
+        order_ids = [o.id for o in orders]
+        if order_ids:
+            order_lines = list(
+                (await session.execute(select(OrderLine).where(OrderLine.order_id.in_(order_ids)))).scalars().all()
+            )
+        else:
+            order_lines = []
+    from datetime import UTC, datetime  # local import — keeps top imports tidy
+
+    now = datetime.now(UTC)
+    features = extract_features(customer, orders, order_lines, now=now)
+    probability = deps.churn_predictor.predict_probability(features)
+    band = classify_risk(probability)
+    return ChurnPrediction(
+        customer_id=customer_id,
+        probability=round(probability, 6),
+        risk_band=band,
+        top_features=["days_since_last_order", "total_revenue_90d", "order_frequency"],
+        model_version=deps.churn_predictor.model_version,
+        predicted_at=now,
+    )
+
+
 # ── Tool implementations — Backend-local observability (7) ────────────────────
 
 
@@ -506,6 +581,7 @@ def register_tools(mcp: Any, deps: Deps) -> None:
     _register_order_tools(mcp, deps)
     _register_product_tools(mcp, deps)
     _register_customer_chaos_tools(mcp, deps)
+    _register_ml_tools(mcp, deps)
     _register_observability_tools(mcp, deps)
 
 
@@ -585,6 +661,24 @@ def _register_customer_chaos_tools(mcp: Any, deps: Deps) -> None:
     )
     async def _trigger_chaos_experiment(scenario: ChaosScenario) -> ChaosResult:
         return await trigger_chaos_experiment(deps, scenario)
+
+
+def _register_ml_tools(mcp: Any, deps: Deps) -> None:
+    """predict_customer_churn — ONNX inference + feature parity with Java."""
+
+    @mcp.tool(
+        name="predict_customer_churn",
+        description=(
+            "Predict the churn probability for one customer (0..1) + risk band "
+            "(LOW/MEDIUM/HIGH). Returns a NotFound shape if the customer is absent, "
+            "or a ServiceUnavailable shape if the ONNX model isn't loaded yet "
+            "(ConfigMap pending — see shared ADR-0062)."
+        ),
+    )
+    async def _predict_customer_churn(
+        customer_id: int,
+    ) -> ChurnPrediction | ChurnNotFound | ChurnServiceUnavailable:
+        return await predict_customer_churn(deps, customer_id)
 
 
 def _register_observability_tools(mcp: Any, deps: Deps) -> None:

@@ -1,6 +1,13 @@
-"""ChurnMLP model tests — forward pass shape, dropout disabled in eval."""
+"""ChurnMLP model tests — forward pass shape, dropout disabled in eval.
+
+Depends on the ``[ml]`` extra (PyTorch). Skipped on runtime-only CI.
+"""
 
 from __future__ import annotations
+
+import pytest
+
+pytest.importorskip("torch", reason="ChurnMLP tests need [ml] extra")
 
 import torch
 

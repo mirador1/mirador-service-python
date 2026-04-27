@@ -64,6 +64,18 @@ dependencies = [
     # MCP get_metrics tool (5s TTL) so an LLM that re-asks the same metric
     # while reasoning doesn't re-walk the prometheus REGISTRY twice.
     "cachetools>=5.5",
+    # ONNX Runtime — runtime serving for the Customer Churn model
+    # (Phase C of shared ADR-0061). The training-side `torch` + `onnx`
+    # stack stays in the optional `ml` extra ; the runtime container
+    # ONLY needs `onnxruntime` (~30 MB) to serve predictions. Adding
+    # it here means the runtime container is fully self-contained
+    # (no opt-in install required for inference).
+    "onnxruntime>=1.21,<2",
+    # numpy — required by the inference path's feature vector shaping.
+    # `onnxruntime` already pulls a compatible version, but we declare
+    # it explicitly so a future runtime trim doesn't accidentally drop
+    # the only numpy import. Same pin range as the `ml` extra below.
+    "numpy>=1.26,<3",
 ]
 
 [project.optional-dependencies]
@@ -274,13 +286,24 @@ source = ["src"]
 omit = [
     "*/migrations/*",
     "*/conftest.py",
-    # mirador_service/ml/* — opt-in [ml] extra. The default unit-tests
-    # job runs WITHOUT --extra ml (torch is 500+ MB ; pulling it for
-    # every CI run would 5x the install time). Tests for the ml package
-    # live in tests/ml/ and run with the extra installed ; their
-    # coverage is measured separately. Including ml/* in the global
-    # coverage gate would always fail at 0% on the unit-tests job.
-    "*/mirador_service/ml/*",
+    # mirador_service/ml/* — split per file :
+    #
+    # The TRAINING side (model.py, seed_demo_data.py, train_churn.py,
+    # feature_engineering.py) requires the opt-in [ml] extra (torch +
+    # mlflow + sklearn ~ 500 MB) ; the default unit-tests CI job does
+    # NOT install it, so coverage on those files would always be 0 %.
+    # They keep the omit ; tests run separately when --extra ml is set.
+    #
+    # The RUNTIME side (inference.py, router.py, dtos.py, risk_band.py,
+    # predictor_singleton.py) shipped in Phase C is now part of the
+    # default deps (onnxruntime is ~30 MB and lives in the runtime
+    # container). These files are tested by tests/ml/test_inference*,
+    # test_risk_band*, test_router_churn* WITHOUT the [ml] extra, so
+    # they DO contribute to the global coverage gate.
+    "*/mirador_service/ml/feature_engineering.py",
+    "*/mirador_service/ml/model.py",
+    "*/mirador_service/ml/seed_demo_data.py",
+    "*/mirador_service/ml/train_churn.py",
 ]
 # greenlet : SQLAlchemy async uses greenlets internally to bridge async ↔
 # sync. Without this hook coverage misses every line invoked via

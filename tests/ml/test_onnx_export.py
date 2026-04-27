@@ -11,6 +11,10 @@ Phase C (Python inference) work without re-validation per language.
 
 from __future__ import annotations
 
+import pytest
+
+pytest.importorskip("torch", reason="ONNX export round-trip needs [ml] extra (torch)")
+
 import tempfile
 from pathlib import Path
 

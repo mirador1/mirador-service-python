@@ -1,6 +1,16 @@
-"""Feature engineering tests — determinism + edge cases."""
+"""Feature engineering tests — determinism + edge cases.
+
+These exercise the TRAINING-side feature pipeline (pandas-vectorised),
+which depends on the ``[ml]`` extra. Runtime serving tests in
+``test_inference.py`` use the lightweight per-customer extractor and
+run unconditionally.
+"""
 
 from __future__ import annotations
+
+import pytest
+
+pytest.importorskip("pandas", reason="training-side feature tests need [ml] extra")
 
 from datetime import UTC, datetime, timedelta
 
