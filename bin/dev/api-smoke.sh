@@ -125,6 +125,29 @@ if [ -n "$CUST_ID" ] && [ -n "$PROD_ID" ]; then
             printf "  ${RED}✗${NC} %-50s total=%s (expected 40.00)\n" "total recomputed" "$TOT"
             FAIL=$((FAIL + 1))
         fi
+        # Order status state-machine — PENDING → CONFIRMED then forbidden
+        # transition CONFIRMED → PENDING (returns 409 ProblemDetail with
+        # currentStatus + targetStatus surfaced in detail).
+        STATUS_RESP=$(curl -s -X PUT "$BASE/orders/$ORD_ID/status" -H "content-type: application/json" \
+            -d '{"status":"CONFIRMED"}' 2>/dev/null)
+        NEW_STATUS=$(echo "$STATUS_RESP" | /usr/bin/python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status',''))" 2>/dev/null)
+        if [ "$NEW_STATUS" = "CONFIRMED" ]; then
+            printf "  ${GREEN}✓${NC} %-50s status=%s\n" "PUT /orders/{id}/status PENDING→CONFIRMED" "$NEW_STATUS"
+            PASS=$((PASS + 1))
+        else
+            printf "  ${RED}✗${NC} %-50s status=%s (expected CONFIRMED)\n" "PUT order status" "$NEW_STATUS"
+            FAIL=$((FAIL + 1))
+        fi
+        # Forbidden CONFIRMED → PENDING returns 409.
+        FORBIDDEN_HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X PUT "$BASE/orders/$ORD_ID/status" \
+            -H "content-type: application/json" -d '{"status":"PENDING"}' 2>/dev/null)
+        if [ "$FORBIDDEN_HTTP" = "409" ]; then
+            printf "  ${GREEN}✓${NC} %-50s http=%s\n" "PUT status CONFIRMED→PENDING rejected" "$FORBIDDEN_HTTP"
+            PASS=$((PASS + 1))
+        else
+            printf "  ${RED}✗${NC} %-50s http=%s (expected 409)\n" "PUT status forbidden transition" "$FORBIDDEN_HTTP"
+            FAIL=$((FAIL + 1))
+        fi
         # DELETE order cascades lines
         probe "delete order (cascade lines)" DELETE /orders/$ORD_ID 204
     fi
