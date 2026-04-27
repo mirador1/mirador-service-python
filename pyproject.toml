@@ -105,6 +105,36 @@ dev = [
     # Container tests — mirror of Testcontainers
     "testcontainers[postgres,redis,kafka]==4.9.0",
 ]
+ml = [
+    # ML training stack — opt-in extra. Not installed in the runtime
+    # serving container ; only for the training pipeline + tests/ml/.
+    # Per shared ADR-0061 §"Phase A scope".
+    #
+    # PyTorch chosen over scikit-learn even for an 8-feature MLP because
+    # the project is portfolio-themed and PyTorch is the modern lingua
+    # franca (2026-04-27 user decision : "PyTorch me paraît plus standard").
+    "torch>=2.5",
+    # ONNX format + runtime — cross-language inference per shared ADR-0060.
+    # `onnx` for the export side ; `onnxruntime` for the round-trip
+    # validation tests + Python serving (Phase C).
+    "onnx>=1.17",
+    "onnxruntime>=1.21,<2",
+    # MLflow for tracking + registry — observability-first per shared
+    # ADR-0062. The training script writes runs to file:// by default
+    # ; setting MLFLOW_TRACKING_URI=http://localhost:5000 redirects to
+    # the standalone tracking server.
+    "mlflow>=2.16",
+    # scikit-learn — used for evaluation metrics (roc_auc_score, etc.)
+    # + StandardScaler in the feature pipeline. NOT for training (that's
+    # PyTorch).
+    "scikit-learn>=1.5",
+    # Numerical stack — pinned to recent stable.
+    "numpy>=1.26",
+    "pandas>=2.2",
+    # Synthetic data for v1 training set per shared ADR-0061 §"Training
+    # data — synthetic for v1". Random seed 42 (deterministic).
+    "Faker>=30",
+]
 
 [project.scripts]
 mirador-service = "mirador_service.app:run"
@@ -240,3 +270,22 @@ dev = [
     "mkdocstrings[python]>=1.0.4",
     "ruff>=0.8.4",
 ]
+
+# ── Customer Churn Prediction tunable knobs (shared ADR-0061) ─────────────────
+# These three windows define the SQL label used to train the churn predictor.
+# Tunable here so we can iterate without code change ; bin/ml/train_churn.py
+# reads them via tomllib at runtime.
+[tool.churn]
+churn_window_days = 90        # last_order older than this → churned
+min_active_period_days = 30   # gap between first + last order ; excludes one-shots
+min_account_age_days = 120    # account younger than this → label not yet meaningful
+
+[tool.churn.training]
+random_seed = 42              # global PyTorch + numpy + Faker seed (determinism)
+val_split = 0.2               # holdout fraction for early-stopping
+batch_size = 64
+max_epochs = 100
+patience = 10                 # early-stop patience on validation AUC
+learning_rate = 0.001
+weight_decay = 0.00001
+auc_gate = 0.60               # acceptance gate ; CI fails the run if holdout AUC < this
