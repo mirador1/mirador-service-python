@@ -225,7 +225,16 @@ ignore_missing_imports = true
 # (tracked in pandas-stubs#XXXX).
 [[tool.mypy.overrides]]
 module = ["mirador_service.ml.*"]
-disable_error_code = ["misc", "assignment", "operator", "call-overload", "unused-ignore", "no-any-return"]
+disable_error_code = [
+    "misc",            # nn.Module subclass-with-Any
+    "assignment",      # pandas object → int re-assignment
+    "operator",        # datetime - object overload mismatch
+    "call-overload",   # range(object) variant matching
+    "unused-ignore",   # leftover ignores after override resolves them
+    "no-any-return",   # tomllib dict access typed as Any
+    "type-arg",        # DataLoader[T] generic args (PyTorch typing is partial)
+    "union-attr",      # mlflow.active_run() Optional[ActiveRun].info — checked at runtime
+]
 
 # mcp (Anthropic MCP SDK) ships py.typed but its FastMCP.tool() decorator
 # is typed as ``Callable[[AnyFunction], AnyFunction]`` (= ``Any`` propagation).
