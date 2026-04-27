@@ -23,6 +23,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from starlette_prometheus import PrometheusMiddleware
 
+from mirador_service.auth.api_key import ApiKeyMiddleware
 from mirador_service.middleware.request_id import RequestIdMiddleware
 
 if TYPE_CHECKING:
@@ -92,7 +93,7 @@ def register_middleware(app: FastAPI, settings: Settings) -> None:
     #    prometheus_client.generate_latest).
     app.add_middleware(PrometheusMiddleware)
 
-    # 4. SlowAPI rate limit (outermost) — 60/min per IP by default. Returns
+    # 4. SlowAPI rate limit — 60/min per IP by default. Returns
     #    429 + Retry-After when exceeded. Wired via app.state.limiter +
     #    exception handler.
     # Build the limiter with the proper storage_uri (Redis in prod,
@@ -104,3 +105,11 @@ def register_middleware(app: FastAPI, settings: Settings) -> None:
     # signature wants Exception (contravariant). Safe to ignore — the handler is
     # only invoked when the actual exception is RateLimitExceeded.
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
+
+    # 5. ApiKeyMiddleware (OUTERMOST — registered last, runs first on
+    #    inbound). Translates ``X-API-Key`` into auth context BEFORE any
+    #    downstream filter / sub-app sees the request. Mirrors Java's
+    #    ``ApiKeyAuthenticationFilter`` running before
+    #    ``JwtAuthenticationFilter`` in the security chain. Header miss /
+    #    mismatch falls through to the JWT path silently.
+    app.add_middleware(ApiKeyMiddleware)

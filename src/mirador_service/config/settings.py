@@ -60,6 +60,27 @@ class JwtSettings(BaseSettings):
     refresh_token_expire_days: int = 30
 
 
+class AuthSettings(BaseSettings):
+    """Static-key auth — machine-to-machine fallback to JWT.
+
+    Mirrors the Java sibling's ``app.api-key`` (in
+    ``ApiKeyAuthenticationFilter``). One client config (`X-API-Key:
+    demo-api-key-2026`) works against either backend transparently —
+    same default, same header name, same role mapping (admin).
+
+    Env var : ``MIRADOR_API_KEY`` (alias) or ``MIRADOR_AUTH__API_KEY``
+    (nested form). The alias is preferred because it matches the Java
+    side's ``API_KEY`` env var character-for-character (modulo the
+    project-wide ``MIRADOR_`` prefix the Python settings layer enforces
+    to avoid colliding with system vars).
+    """
+
+    # Default IDENTICAL to Java's ApiKeyAuthenticationFilter so a single
+    # client config (Claude MCP --header) works against either backend
+    # transparently. Override in prod via secrets manager.
+    api_key: str = "demo-api-key-2026"
+
+
 class Settings(BaseSettings):
     """Top-level application settings."""
 
@@ -81,6 +102,7 @@ class Settings(BaseSettings):
     redis: RedisSettings = Field(default_factory=RedisSettings)
     kafka: KafkaSettings = Field(default_factory=KafkaSettings)
     jwt: JwtSettings = Field(default_factory=JwtSettings)
+    auth: AuthSettings = Field(default_factory=AuthSettings)
 
     # OTel
     otel_endpoint: str = "http://localhost:4318"
