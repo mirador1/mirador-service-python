@@ -4,25 +4,45 @@ Python mirror of [`mirador-service-java`](https://gitlab.com/mirador1/mirador-se
 — FastAPI + Pydantic v2 + SQLAlchemy 2.x async + Kafka + Redis + OpenTelemetry +
 **Sloth-defined SLOs**.
 
-## What this proves
+> **What this project demonstrates mastery of**
+>
+> _A 30-second skim of the central themes of current backend mastery — each axis
+> is verified at every `stable-py-v*` tag. Source of truth for what "this rev guarantees" :
+> `git show stable-py-vX.Y.Z`._
+>
+> - 🤖 **AI** — FastMCP server (Anthropic `mcp[cli]≥1.27`) + streamable-http transport at `/mcp` + 14 in-process tools mirroring the Java backend + audit log per tool call + idempotency + role-based authz.
+> - 🔒 **Security** — JWT HS256 (15 min, refresh-token rotation) + X-API-Key middleware + RBAC + DNS-rebinding host guard + env-var redaction + pip-audit hard gate.
+> - 🧠 **Functional** — Customer onboarding & enrichment (JSONPlaceholder + Ollama LLM bio) + Order / Product / OrderLine domain (6 invariants, 8 Hypothesis property tests) + Kafka audit + diagnostic endpoints.
+> - ☁️ **Infrastructure & Cloud** — Docker debian-slim 412 MB + GKE deploy + Workload Identity Federation + Postgres asyncpg + Kafka aiokafka + Redis async.
+> - 📊 **Observability** — OpenTelemetry → LGTM + starlette-prometheus + 3 SLOs as code via Sloth + multi-burn-rate alerting + 4 dashboards + 3 runbooks.
+> - ✅ **Quality** — `pytest --cov-fail-under=90` blocking gate (~308 tests, 94.59 % coverage) + `mypy --strict` + `ruff` + `import-linter` + Hypothesis + Testcontainers.
+> - 🔄 **CI/CD** — GitLab CI 9 jobs + compat matrix Py 3.12 / 3.13 / 3.14 + Conventional Commits + auto-merge + pip-audit hard gate + Renovate weekly + GitHub mirror push.
+> - 🏛 **Architecture** — Feature-slicing + per-method MCP `@tool` (ADR-0062 produces-vs-accesses) + polyrepo flat α submodules + Clean Code 7 non-negotiables.
+> - 🛠 **DevX** — `uv` (Astral, 100× faster than pip) + Lefthook + `bin/dev/api-smoke.sh` + scheduled tasks for dated TODOs + Conventional Commits CI template (shared via `infra/common/`).
 
-Industrial backend demonstrator focused on production-grade Python practices :
+## TL;DR for hiring managers (60 sec read)
 
-- **Type discipline emulating Java** : `mypy --strict` on 41 files, PEP 695
-  `type` aliases, `Final[T]` constants, `Literal["access","refresh"]` token
-  narrowing. Coverage 90.21% with `--cov-fail-under=90` blocking gate.
-- **Async-first architecture** (ADR-0008) : every I/O path is `async def` ;
-  100s of concurrent requests on a single uvicorn worker.
-- **Observability + SLO/SLA-as-code** : 3 SLOs via Sloth, multi-window
-  multi-burn-rate alerts, Grafana dashboard with error budget tracking.
-- **Security supply chain** : pip-audit hard gate (3 CVEs caught + fixed
-  during dev), JWT + bcrypt 5.x rotation, gitleaks.
-- **Architectural boundaries** : import-linter enforces 4 contracts
-  (config-leaf, db↔kafka indep, integration adapters indep, observability-leaf).
+- **Polyrepo demonstrator** : Python implementation of the same industrial backend
+  served by [`mirador-service-java`](https://gitlab.com/mirador1/mirador-service-java).
+  Shared infra + observability + CI templates via the
+  [`mirador-service-shared`](https://gitlab.com/mirador1/mirador-service-shared)
+  git submodule.
+- **mypy --strict on 41 source files** : Final / Literal / TypeAlias / PEP 695,
+  no implicit `Any`, no untyped defs.
+- **Coverage 90.21%** with `--cov-fail-under=90` hard gate ; 127 unit tests +
+  Hypothesis property-based + 5 kafka_client integration tests via Testcontainers.
+- **SLO/SLA-as-code** via Sloth : 3 SLOs (availability 99% / latency p99 < 500ms /
+  enrichment 99.5%) over 30d + multi-burn-rate alerting + Grafana dashboard.
+- **pip-audit hard gate** : 3 CVEs caught + fixed during dev (pytest 9.0.3,
+  fastapi 0.136.1, starlette 1.0.0).
 
 The default branch targets **Python 3.14**. The compat matrix in CI also
 builds + tests green on **3.12 + 3.13** from the same source — conservative
 production target = 3.12 (oldest with PEP 695 + ergonomic Final/Literal).
+
+For the comprehensive description (tech stack table, endpoint list, MCP tool
+catalogue, full senior-architect matrix, sibling-projects map, deep dives), see the
+[main README](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/README.md).
 
 ## Quick links
 
@@ -31,54 +51,8 @@ production target = 3.12 (oldest with PEP 695 + ergonomic Final/Literal).
 - 📋 [ADRs](architecture/adrs.md) (12 records — stack, auth, Kafka, observability, settings, logging, industrial practices, async-first, uv, SQLAlchemy, hypothesis, Sloth SLO)
 - 📊 [SLO definitions](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/docs/slo/slo.yaml) + [SLA promise](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/docs/slo/sla.md)
 - 📖 [Runbooks](https://gitlab.com/mirador1/mirador-service-python/-/tree/main/docs/runbooks)
-- 🛠 [README](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/README.md)
+- 🛠 [README (full)](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/README.md)
 - 🔬 [Java sibling](https://gitlab.com/mirador1/mirador-service-java) | [UI](https://gitlab.com/mirador1/mirador-ui) | [shared infra](https://gitlab.com/mirador1/mirador-service-shared)
-
-## Stack at a glance
-
-| Layer | Technology | Mirrors Java's |
-|---|---|---|
-| Web framework | FastAPI 0.136 | Spring Boot 4 Web MVC |
-| DTO + validation | Pydantic v2.11 | Jackson + Bean Validation |
-| ORM | SQLAlchemy 2.0 async | Spring Data JPA |
-| Migrations | Alembic 1.14 | Flyway |
-| JWT auth | **pyjwt** + **bcrypt** 5.x | Spring Security + jjwt |
-| Kafka | aiokafka 0.13 | Spring Kafka |
-| Redis | redis-py 5.2 (asyncio) | Spring Data Redis |
-| Observability | OpenTelemetry SDK + starlette-prometheus | Micrometer + OTel SDK |
-| **SLO/SLA-as-code** | **Sloth** + multi-burn-rate | Sloth (mirror) |
-| Logging | structlog | Logback structured |
-| Rate limiting | slowapi + Redis backend | bucket4j |
-| Cron | APScheduler | @Scheduled |
-| Package manager | **uv** (Astral) | Maven |
-| Test | pytest + pytest-asyncio + **hypothesis** + pytest-benchmark | JUnit 5 + Mockito + jqwik + JMH |
-| Lint / Format | ruff + mypy --strict | Checkstyle + SpotBugs + PMD |
-| Arch tests | **import-linter** (4 contracts) | ArchUnit |
-| CVE scan | **pip-audit** | OWASP Dependency-Check |
-
-## Endpoints
-
-- `GET /customers` — paginated list (v1 / v2 dispatch via `X-API-Version`)
-- `POST /customers` — create + publish CustomerCreatedEvent (Kafka FAF)
-- `GET /customers/{id}` — read
-- `PUT /customers/{id}` — replace
-- `PATCH /customers/{id}` — partial update
-- `DELETE /customers/{id}` — delete
-- `GET /customers/recent` — last 10 from Redis ring buffer
-- `GET /customers/{id}/audit` — synthetic audit trail
-- `GET /customers/{id}/enrich` — Kafka request-reply enrichment
-- `GET /customers/{id}/todos` — JSONPlaceholder + tenacity retry
-- `GET /customers/diagnostic/slow-query` — induces slow span (Tempo)
-- `GET /customers/diagnostic/db-failure` — induces 500 (Loki)
-- `GET /customers/diagnostic/kafka-timeout` — induces 504 (Problem+JSON)
-- `POST /auth/login` — JWT issue
-- `POST /auth/refresh` — refresh token rotation
-- `GET /auth/me` — current user claims
-- `GET /actuator/health` — composite (DB + Redis + Kafka)
-- `GET /actuator/health/{liveness,readiness}` — k8s probes
-- `GET /actuator/info` — runtime metadata
-- `GET /actuator/prometheus` — metrics scrape
-- `GET /actuator/quality` — aggregated code-quality signals
 
 ## Quick start
 
@@ -96,5 +70,8 @@ bin/run.sh
 bin/demo-up.sh
 ```
 
-See [README](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/README.md)
-for the full setup guide.
+See the [main README](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/README.md)
+for the full setup guide, the tech stack table, the endpoint list, and the
+[14-tool MCP catalogue](https://gitlab.com/mirador1/mirador-service-python/-/blob/main/README.md#ai-integration-via-mcp).
+</content>
+</invoke>
