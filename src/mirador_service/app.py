@@ -72,7 +72,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # shared ADR-0062 — missing file logs a warning but does not raise.
     try:
         get_churn_predictor()
-    except Exception as exc:  # noqa: BLE001 — keep app booting on any ML error
+    except Exception as exc:
         logger.warning("churn_predictor_init_failed reason=%s — endpoint will return 503", exc)
     yield
     # Shutdown : close in reverse-startup order
