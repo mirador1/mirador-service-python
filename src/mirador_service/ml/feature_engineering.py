@@ -3,7 +3,7 @@
 Per [shared ADR-0061](https://gitlab.com/mirador1/mirador-service-shared/-/blob/main/docs/adr/0061-customer-churn-prediction.md)
 §"Feature engineering". The pipeline transforms a Customer + Order
 DataFrame into a fixed-shape ``(N, 8)`` float32 matrix that
-:class:`bin.ml.model.ChurnMLP` consumes.
+:class:`mirador_service.ml.model.ChurnMLP` consumes.
 
 Public surface :
 

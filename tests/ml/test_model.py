@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import torch
 
-from bin.ml.model import N_FEATURES, ChurnMLP, predict_proba
+from mirador_service.ml.model import N_FEATURES, ChurnMLP, predict_proba
 
 
 def test_forward_returns_logits_shape() -> None:

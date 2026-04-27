@@ -6,15 +6,15 @@ MLP, ONNX export contract, MLflow registry).
 
 Public surface :
 
-- :mod:`bin.ml.feature_engineering` — extracts the 8 numeric features
+- :mod:`mirador_service.ml.feature_engineering` — extracts the 8 numeric features
   from a Postgres-shaped DataFrame.
-- :mod:`bin.ml.model` — defines the :class:`ChurnMLP` PyTorch
+- :mod:`mirador_service.ml.model` — defines the :class:`ChurnMLP` PyTorch
   module + ONNX export helper.
-- :mod:`bin.ml.seed_demo_data` — Faker-driven synthetic training
+- :mod:`mirador_service.ml.seed_demo_data` — Faker-driven synthetic training
   set (1000 customers + 10K orders, 20 % churn rate, deterministic
   seed).
-- :mod:`bin.ml.train_churn` — main training entry point. Run via
-  ``uv run python -m bin.ml.train_churn`` or directly.
+- :mod:`mirador_service.ml.train_churn` — main training entry point. Run via
+  ``uv run python -m mirador_service.ml.train_churn`` or directly.
 
 The package is opt-in : its dependencies live in the ``ml`` extra
 (``uv sync --extra ml``) so the runtime serving container stays

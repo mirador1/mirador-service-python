@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 
-from bin.ml.feature_engineering import (
+from mirador_service.ml.feature_engineering import (
     FEATURE_NAMES,
     build_features,
     classify_email_domain,

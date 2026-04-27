@@ -13,11 +13,11 @@ byte-identical output.
 
 Usage :
 
-    python -m bin.ml.seed_demo_data --output ./training_data.parquet
+    python -m mirador_service.ml.seed_demo_data --output ./training_data.parquet
 
 OR programmatically :
 
-    from bin.ml.seed_demo_data import generate_dataset
+    from mirador_service.ml.seed_demo_data import generate_dataset
     customers, orders, lines = generate_dataset(n_customers=1000, seed=42)
 
 The "production migration" path (real Postgres data) is documented
@@ -37,7 +37,7 @@ import pandas as pd
 from faker import Faker
 
 # At seed=42 with the parameters below, the SQL label from
-# bin.ml.feature_engineering.label_churn() yields ~22 % churned at
+# mirador_service.ml.feature_engineering.label_churn() yields ~22 % churned at
 # now=2026-04-27. The number drifts ±2 % depending on the
 # `now` reference, but the seed pins everything else.
 _CHURN_TARGET_RATE: float = 0.20

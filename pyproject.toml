@@ -176,11 +176,11 @@ max-complexity = 10
 "tests/**/*.py" = ["S101", "S105", "S106", "S107"]
 
 [tool.ruff.lint.isort]
-# Tell isort the project's first-party modules so import grouping puts them
-# in the right block. Without this, `from bin.ml.* import …` gets classified
-# as third-party (since `bin` is not a default-detected source root) and
-# ruff's I rule flags the import block as misordered.
-known-first-party = ["mirador_service", "bin"]
+# Pin the project's first-party module so import grouping is stable.
+# `mirador_service` is the only namespace ; `bin/` (shell scripts) is no
+# longer a Python module after the 2026-04-27 ML phase A move that
+# relocated `bin/ml/` → `src/mirador_service/ml/` for tooling-friendliness.
+known-first-party = ["mirador_service"]
 
 [tool.mypy]
 python_version = "3.14"

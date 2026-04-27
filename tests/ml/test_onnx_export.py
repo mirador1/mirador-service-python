@@ -18,7 +18,7 @@ import numpy as np
 import onnxruntime as ort  # type: ignore[import-untyped]
 import torch
 
-from bin.ml.model import N_FEATURES, ChurnMLP, export_to_onnx
+from mirador_service.ml.model import N_FEATURES, ChurnMLP, export_to_onnx
 
 
 def test_onnx_export_creates_valid_file() -> None:

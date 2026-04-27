@@ -2,7 +2,7 @@
 
 Reads training data (synthetic Faker by default ; ``--data-source
 postgres`` for real data — Phase A migration path), engineers
-features, trains the :class:`bin.ml.model.ChurnMLP`, evaluates
+features, trains the :class:`mirador_service.ml.model.ChurnMLP`, evaluates
 metrics, exports to ONNX, and logs everything to MLflow.
 
 Pipeline :
@@ -20,13 +20,13 @@ Pipeline :
 Usage :
 
     # Local synthetic run (no MLflow server needed) :
-    uv run python -m bin.ml.train_churn
+    uv run python -m mirador_service.ml.train_churn
 
     # With MLflow tracking server :
-    MLFLOW_TRACKING_URI=http://localhost:5000 uv run python -m bin.ml.train_churn
+    MLFLOW_TRACKING_URI=http://localhost:5000 uv run python -m mirador_service.ml.train_churn
 
     # Real Postgres data (read-only — connection string from env) :
-    uv run python -m bin.ml.train_churn --data-source postgres
+    uv run python -m mirador_service.ml.train_churn --data-source postgres
 
 The script is intentionally CLI-driven (no Python API beyond the
 helpers). The training pipeline is the contract ; downstream
@@ -57,9 +57,9 @@ from sklearn.model_selection import train_test_split  # type: ignore[import-unty
 from sklearn.preprocessing import StandardScaler  # type: ignore[import-untyped]
 from torch.utils.data import DataLoader, TensorDataset
 
-from bin.ml.feature_engineering import FEATURE_NAMES, build_features, label_churn
-from bin.ml.model import ChurnMLP, export_to_onnx, predict_proba
-from bin.ml.seed_demo_data import generate_dataset
+from mirador_service.ml.feature_engineering import FEATURE_NAMES, build_features, label_churn
+from mirador_service.ml.model import ChurnMLP, export_to_onnx, predict_proba
+from mirador_service.ml.seed_demo_data import generate_dataset
 
 logger = logging.getLogger(__name__)
 

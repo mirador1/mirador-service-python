@@ -26,7 +26,7 @@ from typing import Final
 import torch
 import torch.nn as nn
 
-# Number of input features — must match :data:`bin.ml.feature_engineering.FEATURE_NAMES`.
+# Number of input features — must match :data:`mirador_service.ml.feature_engineering.FEATURE_NAMES`.
 N_FEATURES: Final[int] = 8
 
 # Hidden layer width per ADR-0061 §"Model architecture". Two hidden
