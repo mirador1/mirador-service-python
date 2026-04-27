@@ -13,7 +13,6 @@ from mirador_service.ml.feature_engineering import (
     label_churn,
 )
 
-
 _NOW = datetime(2026, 4, 27, tzinfo=UTC)
 
 

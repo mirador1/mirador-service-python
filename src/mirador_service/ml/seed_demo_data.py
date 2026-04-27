@@ -86,7 +86,7 @@ def generate_dataset(
     fake = Faker()
     Faker.seed(seed)
 
-    n_churned = int(round(n_customers * churn_rate))
+    n_churned = round(n_customers * churn_rate)
     n_active = n_customers - n_churned
 
     # Account ages — uniform from 120 days (min for label) to MAX.

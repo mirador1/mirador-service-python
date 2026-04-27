@@ -47,14 +47,14 @@ from typing import Any
 import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.metrics import (  # type: ignore[import-untyped]
+from sklearn.metrics import (
     average_precision_score,
     brier_score_loss,
     confusion_matrix,
     roc_auc_score,
 )
-from sklearn.model_selection import train_test_split  # type: ignore[import-untyped]
-from sklearn.preprocessing import StandardScaler  # type: ignore[import-untyped]
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader, TensorDataset
 
 from mirador_service.ml.feature_engineering import FEATURE_NAMES, build_features, label_churn
@@ -71,7 +71,8 @@ def _load_config() -> dict[str, Any]:
     """Read ``[tool.churn]`` + ``[tool.churn.training]`` from pyproject.toml."""
     with _PYPROJECT.open("rb") as f:
         data = tomllib.load(f)
-    return data["tool"]["churn"]
+    churn_cfg: dict[str, Any] = data["tool"]["churn"]
+    return churn_cfg
 
 
 def _set_global_seed(seed: int) -> None:
@@ -216,7 +217,7 @@ def _log_to_mlflow(metrics: dict[str, float], onnx_path: Path, cfg: dict[str, An
     registry side is skipped.
     """
     try:
-        import mlflow  # type: ignore[import-untyped]
+        import mlflow
     except ImportError:
         logger.warning("mlflow not installed — skipping registry log. Install via uv sync --extra ml.")
         return
@@ -235,7 +236,7 @@ def _log_to_mlflow(metrics: dict[str, float], onnx_path: Path, cfg: dict[str, An
                 name="ChurnPredictor",
             )
             logger.info("✓ logged run + registered model in MLflow")
-    except Exception as exc:  # noqa: BLE001 — MLflow client errors are diverse ; log + continue.
+    except Exception as exc:
         logger.warning("MLflow logging failed (run continues without registry log) : %s", exc)
 
 
@@ -257,7 +258,10 @@ def main(argv: list[str] | None = None) -> int:
 
     logger.info("Building dataset (%s, n=%d)…", args.data_source, args.n_customers)
     features_np, labels_np = _build_dataset(args, cfg)
-    logger.info("Dataset : %d samples, %d features, churn rate=%.2f", len(features_np), features_np.shape[1], labels_np.mean())
+    logger.info(
+        "Dataset : %d samples, %d features, churn rate=%.2f",
+        len(features_np), features_np.shape[1], labels_np.mean(),
+    )
 
     x_tr_np, x_va_np, y_tr_np, y_va_np = train_test_split(
         features_np, labels_np,
