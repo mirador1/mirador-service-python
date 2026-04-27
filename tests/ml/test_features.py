@@ -36,27 +36,33 @@ def test_email_domain_classifier_buckets() -> None:
 
 
 def test_label_churn_matches_sql_definition() -> None:
-    customers = pd.DataFrame([
-        _customer_row(1, "a@x.com", age_days=200, first_offset=180, last_offset=100),  # churned
-        _customer_row(2, "b@x.com", age_days=200, first_offset=180, last_offset=10),   # active
-        _customer_row(3, "c@x.com", age_days=50, first_offset=40, last_offset=100),    # too young
-        _customer_row(4, "d@x.com", age_days=200, first_offset=100, last_offset=95),   # one-shot
-    ])
+    customers = pd.DataFrame(
+        [
+            _customer_row(1, "a@x.com", age_days=200, first_offset=180, last_offset=100),  # churned
+            _customer_row(2, "b@x.com", age_days=200, first_offset=180, last_offset=10),  # active
+            _customer_row(3, "c@x.com", age_days=50, first_offset=40, last_offset=100),  # too young
+            _customer_row(4, "d@x.com", age_days=200, first_offset=100, last_offset=95),  # one-shot
+        ]
+    )
     labels = label_churn(customers, now=_NOW)
     assert labels.tolist() == [True, False, False, False]
 
 
 def test_build_features_shape_and_order() -> None:
     customers = pd.DataFrame([_customer_row(1, "a@gmail.com", age_days=200, first_offset=180, last_offset=10)])
-    orders = pd.DataFrame([
-        {"id": 100, "customer_id": 1, "created_at": _NOW - timedelta(days=10), "total_amount": 50.0},
-        {"id": 101, "customer_id": 1, "created_at": _NOW - timedelta(days=60), "total_amount": 30.0},
-    ])
-    order_lines = pd.DataFrame([
-        {"id": 1, "order_id": 100, "product_id": 1, "quantity": 2, "unit_price_at_order": 25.0},
-        {"id": 2, "order_id": 100, "product_id": 2, "quantity": 1, "unit_price_at_order": 25.0},
-        {"id": 3, "order_id": 101, "product_id": 1, "quantity": 1, "unit_price_at_order": 30.0},
-    ])
+    orders = pd.DataFrame(
+        [
+            {"id": 100, "customer_id": 1, "created_at": _NOW - timedelta(days=10), "total_amount": 50.0},
+            {"id": 101, "customer_id": 1, "created_at": _NOW - timedelta(days=60), "total_amount": 30.0},
+        ]
+    )
+    order_lines = pd.DataFrame(
+        [
+            {"id": 1, "order_id": 100, "product_id": 1, "quantity": 2, "unit_price_at_order": 25.0},
+            {"id": 2, "order_id": 100, "product_id": 2, "quantity": 1, "unit_price_at_order": 25.0},
+            {"id": 3, "order_id": 101, "product_id": 1, "quantity": 1, "unit_price_at_order": 30.0},
+        ]
+    )
 
     feats = build_features(customers, orders, order_lines, now=_NOW)
     assert list(feats.columns) == list(FEATURE_NAMES)
@@ -83,12 +89,16 @@ def test_build_features_handles_zero_orders() -> None:
 def test_build_features_is_deterministic_given_same_inputs() -> None:
     """Running build_features twice on the same inputs returns identical rows."""
     customers = pd.DataFrame([_customer_row(1, "a@x.com", age_days=200, first_offset=180, last_offset=10)])
-    orders = pd.DataFrame([
-        {"id": 100, "customer_id": 1, "created_at": _NOW - timedelta(days=5), "total_amount": 10.0},
-    ])
-    order_lines = pd.DataFrame([
-        {"id": 1, "order_id": 100, "product_id": 1, "quantity": 1, "unit_price_at_order": 10.0},
-    ])
+    orders = pd.DataFrame(
+        [
+            {"id": 100, "customer_id": 1, "created_at": _NOW - timedelta(days=5), "total_amount": 10.0},
+        ]
+    )
+    order_lines = pd.DataFrame(
+        [
+            {"id": 1, "order_id": 100, "product_id": 1, "quantity": 1, "unit_price_at_order": 10.0},
+        ]
+    )
 
     f1 = build_features(customers, orders, order_lines, now=_NOW)
     f2 = build_features(customers, orders, order_lines, now=_NOW)

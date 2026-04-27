@@ -190,7 +190,11 @@ def _train_with_early_stop(
         metrics["train_loss"] = train_loss
         logger.info(
             "epoch %d : train_loss=%.4f val_auc=%.4f val_ap=%.4f val_brier=%.4f",
-            epoch, train_loss, metrics["auc"], metrics["average_precision"], metrics["brier"],
+            epoch,
+            train_loss,
+            metrics["auc"],
+            metrics["average_precision"],
+            metrics["brier"],
         )
         if metrics["auc"] > best_auc:
             best_auc = metrics["auc"]
@@ -224,11 +228,13 @@ def _log_to_mlflow(metrics: dict[str, float], onnx_path: Path, cfg: dict[str, An
 
     try:
         with mlflow.start_run(run_name="churn_predictor"):
-            mlflow.log_params({
-                "feature_names": list(FEATURE_NAMES),
-                **{f"churn.{k}": v for k, v in cfg.items() if k != "training"},
-                **{f"training.{k}": v for k, v in cfg["training"].items()},
-            })
+            mlflow.log_params(
+                {
+                    "feature_names": list(FEATURE_NAMES),
+                    **{f"churn.{k}": v for k, v in cfg.items() if k != "training"},
+                    **{f"training.{k}": v for k, v in cfg["training"].items()},
+                }
+            )
             mlflow.log_metrics({k: v for k, v in metrics.items() if isinstance(v, (int, float))})
             mlflow.log_artifact(str(onnx_path), artifact_path="model")
             mlflow.register_model(
@@ -260,11 +266,14 @@ def main(argv: list[str] | None = None) -> int:
     features_np, labels_np = _build_dataset(args, cfg)
     logger.info(
         "Dataset : %d samples, %d features, churn rate=%.2f",
-        len(features_np), features_np.shape[1], labels_np.mean(),
+        len(features_np),
+        features_np.shape[1],
+        labels_np.mean(),
     )
 
     x_tr_np, x_va_np, y_tr_np, y_va_np = train_test_split(
-        features_np, labels_np,
+        features_np,
+        labels_np,
         test_size=cfg["training"]["val_split"],
         stratify=labels_np,
         random_state=cfg["training"]["random_seed"],

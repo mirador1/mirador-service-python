@@ -104,12 +104,14 @@ def generate_dataset(
         # Name + email via Faker (deterministic given seed).
         name = fake.name()
         email = _domain_skewed_email(fake, rng, is_churned_target)
-        customer_records.append({
-            "id": cid,
-            "name": name,
-            "email": email,
-            "created_at": created_at,
-        })
+        customer_records.append(
+            {
+                "id": cid,
+                "name": name,
+                "email": email,
+                "created_at": created_at,
+            }
+        )
 
     # Orders — for each customer, decide :
     #  - if churned : last_order between 91 and (account_age - 30) days ago
@@ -141,13 +143,15 @@ def generate_dataset(
             created_at = now - timedelta(days=int(age))
             n_lines = max(1, int(rng.poisson(_MEAN_LINES_PER_ORDER)))
             total_amount = round(rng.lognormal(mean=3.0, sigma=0.6), 2)
-            order_records.append({
-                "id": next_order_id,
-                "customer_id": cid,
-                "created_at": created_at,
-                "total_amount": total_amount,
-                "_n_lines": n_lines,
-            })
+            order_records.append(
+                {
+                    "id": next_order_id,
+                    "customer_id": cid,
+                    "created_at": created_at,
+                    "total_amount": total_amount,
+                    "_n_lines": n_lines,
+                }
+            )
             next_order_id += 1
 
     # OrderLine rows.
@@ -155,13 +159,15 @@ def generate_dataset(
     next_line_id = 1
     for order in order_records:
         for _ in range(order["_n_lines"]):  # type: ignore[arg-type]
-            line_records.append({
-                "id": next_line_id,
-                "order_id": order["id"],
-                "product_id": int(rng.integers(1, n_products + 1)),
-                "quantity": int(rng.integers(1, 5)),
-                "unit_price_at_order": round(rng.lognormal(mean=2.5, sigma=0.5), 2),
-            })
+            line_records.append(
+                {
+                    "id": next_line_id,
+                    "order_id": order["id"],
+                    "product_id": int(rng.integers(1, n_products + 1)),
+                    "quantity": int(rng.integers(1, 5)),
+                    "unit_price_at_order": round(rng.lognormal(mean=2.5, sigma=0.5), 2),
+                }
+            )
             next_line_id += 1
 
     customers = pd.DataFrame(customer_records)
@@ -170,8 +176,12 @@ def generate_dataset(
 
     # Annotate customer rows with first/last order timestamps so the
     # caller can compute the label without re-aggregating.
-    agg = orders.groupby("customer_id")["created_at"].agg(["min", "max"]).rename(
-        columns={"min": "first_order_at", "max": "last_order_at"},
+    agg = (
+        orders.groupby("customer_id")["created_at"]
+        .agg(["min", "max"])
+        .rename(
+            columns={"min": "first_order_at", "max": "last_order_at"},
+        )
     )
     customers = customers.merge(agg, left_on="id", right_index=True, how="left")
 

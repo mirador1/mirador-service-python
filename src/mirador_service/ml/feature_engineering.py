@@ -43,14 +43,29 @@ FEATURE_NAMES: Final[tuple[str, ...]] = (
 # customer profile (corporate domains correlate with B2B retention) ;
 # higher = more "throwaway" (disposable mail providers correlate with
 # higher churn).
-_MAINSTREAM_DOMAINS: Final[frozenset[str]] = frozenset({
-    "gmail.com", "outlook.com", "hotmail.com", "yahoo.com", "icloud.com",
-    "live.com", "msn.com", "aol.com", "protonmail.com", "yandex.com",
-})
-_DISPOSABLE_DOMAINS: Final[frozenset[str]] = frozenset({
-    "tempmail.com", "10minutemail.com", "guerrillamail.com",
-    "mailinator.com", "throwaway.email",
-})
+_MAINSTREAM_DOMAINS: Final[frozenset[str]] = frozenset(
+    {
+        "gmail.com",
+        "outlook.com",
+        "hotmail.com",
+        "yahoo.com",
+        "icloud.com",
+        "live.com",
+        "msn.com",
+        "aol.com",
+        "protonmail.com",
+        "yandex.com",
+    }
+)
+_DISPOSABLE_DOMAINS: Final[frozenset[str]] = frozenset(
+    {
+        "tempmail.com",
+        "10minutemail.com",
+        "guerrillamail.com",
+        "mailinator.com",
+        "throwaway.email",
+    }
+)
 
 
 def classify_email_domain(email: str) -> int:
@@ -103,9 +118,7 @@ def label_churn(
     activity_gap = pd.Timedelta(days=min_active_period_days)
 
     has_late_last_order = customers["last_order_at"] < last_threshold
-    has_active_period = (
-        customers["last_order_at"] - customers["first_order_at"]
-    ) > activity_gap
+    has_active_period = (customers["last_order_at"] - customers["first_order_at"]) > activity_gap
     has_account_age = customers["created_at"] < age_threshold
 
     return (has_late_last_order & has_active_period & has_account_age).astype(bool)
