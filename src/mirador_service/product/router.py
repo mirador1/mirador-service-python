@@ -31,10 +31,23 @@ async def list_products(
     session: DbSession,
     page: Annotated[int, Query(ge=0)] = 0,
     size: Annotated[int, Query(ge=1, le=100)] = 20,
+    search: Annotated[
+        str | None,
+        Query(
+            description="Optional case-insensitive substring filter on name + description "
+            "(300 ms debounced from the UI side ; matches Java's /products?search=).",
+            examples=["laptop", "stand"],
+        ),
+    ] = None,
 ) -> ProductPage:
-    """Paginated list of products."""
+    """Paginated list of products, optionally filtered by ``search``.
+
+    Empty or whitespace-only ``search`` falls through to the unfiltered
+    listing — same shape as before the parameter landed, so existing
+    callers keep working unchanged.
+    """
     repo = ProductRepository(session)
-    items, total = await repo.list_paginated(page=page, size=size)
+    items, total = await repo.list_paginated(page=page, size=size, search=search)
     return ProductPage(
         items=[ProductResponse.from_orm_entity(p) for p in items],
         total=total,

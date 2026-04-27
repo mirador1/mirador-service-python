@@ -215,3 +215,102 @@ async def test_pagination(client: AsyncClient) -> None:
     assert body["total"] == 5
     assert body["page"] == 0
     assert body["size"] == 2
+
+
+# ── /products?search= ────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_search_filters_by_name_substring(client: AsyncClient) -> None:
+    """search="lap" matches "Laptop" + "Lapdog" (case-insensitive substring)."""
+    for name, desc in (
+        ("Laptop Stand", "ergonomic"),
+        ("Lapdog Carrier", "small dog"),
+        ("Mouse", "wireless"),
+    ):
+        await client.post(
+            "/products",
+            json={"name": name, "description": desc, "unit_price": "9.99", "stock_quantity": 1},
+        )
+
+    response = await client.get("/products?search=lap")
+    assert response.status_code == 200
+    body = response.json()
+    names = [p["name"] for p in body["items"]]
+    assert names == ["Laptop Stand", "Lapdog Carrier"]
+    assert body["total"] == 2
+
+
+@pytest.mark.asyncio
+async def test_search_filters_by_description(client: AsyncClient) -> None:
+    """search="ergonomic" matches the Laptop Stand by description, NOT the rest."""
+    for name, desc in (
+        ("Laptop Stand", "ergonomic"),
+        ("Mouse", "wireless"),
+    ):
+        await client.post(
+            "/products",
+            json={"name": name, "description": desc, "unit_price": "9.99", "stock_quantity": 1},
+        )
+
+    response = await client.get("/products?search=ergonomic")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 1
+    assert body["items"][0]["name"] == "Laptop Stand"
+
+
+@pytest.mark.asyncio
+async def test_search_is_case_insensitive(client: AsyncClient) -> None:
+    """search="LAPTOP" matches "Laptop Stand" (the lower() normalisation)."""
+    await client.post(
+        "/products",
+        json={"name": "Laptop Stand", "unit_price": "9.99", "stock_quantity": 1},
+    )
+
+    response = await client.get("/products?search=LAPTOP")
+    assert response.status_code == 200
+    assert response.json()["total"] == 1
+
+
+@pytest.mark.asyncio
+async def test_search_empty_string_returns_unfiltered(client: AsyncClient) -> None:
+    """search="" must NOT degrade to LIKE '%%' — falls through to list_paginated."""
+    for i in range(3):
+        await client.post(
+            "/products",
+            json={"name": f"P{i}", "unit_price": "1.00", "stock_quantity": 1},
+        )
+
+    response = await client.get("/products?search=")
+    assert response.status_code == 200
+    assert response.json()["total"] == 3
+
+
+@pytest.mark.asyncio
+async def test_search_whitespace_only_returns_unfiltered(client: AsyncClient) -> None:
+    """search="   " trimmed to empty → unfiltered list."""
+    for i in range(3):
+        await client.post(
+            "/products",
+            json={"name": f"P{i}", "unit_price": "1.00", "stock_quantity": 1},
+        )
+
+    response = await client.get("/products?search=%20%20%20")
+    assert response.status_code == 200
+    assert response.json()["total"] == 3
+
+
+@pytest.mark.asyncio
+async def test_search_no_match_returns_empty_page(client: AsyncClient) -> None:
+    """search="xyz" with nothing matching → 200 + empty items + total=0."""
+    await client.post(
+        "/products",
+        json={"name": "Laptop", "unit_price": "9.99", "stock_quantity": 1},
+    )
+
+    response = await client.get("/products?search=xyz")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["items"] == []
+    assert body["total"] == 0
