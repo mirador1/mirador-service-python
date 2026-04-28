@@ -1,15 +1,23 @@
-# mirador-service-python
+# iris-service-python
 
 <sub>**English** · [Français](README.fr.md)</sub>
 
-> **What this project demonstrates mastery of**
+> **Iris — observability-first showcase across 7 facets (Python sibling)**
 >
-> _A 30-second skim of the central themes of current backend mastery — each axis
-> is verified at every `stable-py-v*` tag. Source of truth for what "this rev guarantees" :
+> _Aucun point de vue ne raconte tout — chaque facette révèle une partie
+> du système. Comme un diaphragme, l'image complète émerge de la
+> composition. Vérifié à chaque tag `stable-py-v*`. Source of truth =
 > `git show stable-py-vX.Y.Z`._
 >
-> - 🤖 **IA** — FastMCP server (Anthropic's `mcp[cli]≥1.27`) + streamable-http transport mounted at `/mcp` + 14 in-process tools mirroring the Java backend (per-method `@tool` decorators, Pydantic v2 frozen DTOs) + audit log per tool call (`MCP_TOOL_CALL` action) + idempotency cache on `create_order` + role-based authz (`require_role(ROLE_ADMIN)`).
-> - 🔒 **Sécurité** — JWT HS256 (15 min, refresh-token rotation) + **X-API-Key middleware** (parity with Java's `ApiKeyAuthenticationFilter`, default `demo-api-key-2026`) + RBAC (`ROLE_ADMIN` / `ROLE_USER`, both granted on API-key path) + DNS-rebinding host guard + env-var redaction `(?i).*(password|secret|token|key|credential).*` + pip-audit hard gate (no `allow_failure` shield).
+> - <span style="color: #ff2d20">●</span> **Observability** (the central axis) — OpenTelemetry traces + logs + metrics → LGTM stack + `starlette-prometheus` exporter + 3 SLOs as code via Sloth (mirror Java) + multi-burn-rate alerting + 4 dashboards + chaos-driven SLO demo annotations + 3 runbooks.
+> - <span style="color: #ff9500">●</span> **Infra · Cloud** — Docker image (412 MB on debian-slim) + GKE deploy via the same chart family as the Java sibling + Workload Identity Federation + Postgres asyncpg + Kafka aiokafka + Redis async client.
+> - <span style="color: #ffcc00">●</span> **Security** — JWT HS256 (15 min, refresh-token rotation) + **X-API-Key middleware** (parity with Java's `ApiKeyAuthenticationFilter`) + RBAC + DNS-rebinding host guard + env-var redaction + pip-audit hard gate (no `allow_failure` shield).
+> - <span style="color: #34c759">●</span> **CI · CD** — GitLab CI 9 jobs across `lint / test / integration / package / sonar / pages` stages + compat matrix Python 3.12 / 3.13 / 3.14 + Conventional Commits + auto-merge + pip-audit hard gate + import-linter + Renovate weekly bumps + GitHub mirror push on tag.
+> - <span style="color: #30c9d4">●</span> **Architecture** — Feature-slicing + per-method MCP `@tool` exposure (ADR-0062) + polyrepo flat α submodules (ADR-0060) + Clean Code 7 non-negotiables.
+> - <span style="color: #007aff">●</span> **AI · ML** — FastMCP server + streamable-http transport mounted at `/mcp` + 14 in-process tools mirroring the Java backend + audit log per tool call + idempotency cache + role-based authz + Customer Churn ONNX inference (cross-language Java parity ≤ 1e-6) + drift detection consumer.
+> - <span style="color: #af52de">●</span> **Quality** — `pytest --cov-fail-under=90` blocking gate (~308 unit + integration tests, 92% coverage) + `mypy --strict` + `ruff check` + `ruff format --check` + `import-linter` + Hypothesis property-based tests + Testcontainers + asgi-lifespan.
+>
+> _Plus complementary dimensions : Fonctionnel (Customer onboarding & enrichment via Ollama LLM), DevX (uv, lefthook, api-smoke.sh)._
 > - 🧠 **Fonctionnel** — Customer onboarding & enrichment (JSONPlaceholder lookup + Ollama LLM bio generation) + Order / Product / OrderLine domain (6 invariants from shared ADR-0059, enforced via 8 Hypothesis property-based tests) + Kafka audit events + diagnostic incident endpoints (`slow-query`, `db-failure`, `kafka-timeout`).
 > - ☁️ **Infrastructure & Cloud** — Docker image (412 MB on debian-slim ; alpine blocked on pydantic_core / cryptography / bcrypt musl wheels) + GKE deploy via the same chart family as the Java sibling + Workload Identity Federation + Postgres asyncpg + Kafka aiokafka + Redis async client.
 > - 📊 **Observabilité** — OpenTelemetry traces + logs + metrics → LGTM stack (Tempo / Loki / Mimir / Grafana) + `starlette-prometheus` exporter + 3 SLOs as code via Sloth (mirror Java) + multi-burn-rate alerting + 4 dashboards (SLO overview, Apdex, latency heatmap, SLO breakdown by `path_template`) + chaos-driven SLO demo annotations + 3 runbooks.
