@@ -27,11 +27,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # ── Stage 2 : Runtime (slim-bookworm, no uv) ───────────────────────────────
 # Tried alpine 2026-04-25 (would save ~130 MB) but pydantic_core's Rust
 # binary copied from the bookworm builder is glibc-only — runtime crashes
-# with `ModuleNotFoundError: pydantic_core._pydantic_core`. To go alpine
-# would require building deps INSIDE alpine (single-stage or alpine
-# builder), which defeats the multi-stage caching benefit. Sticking with
-# slim-bookworm for now ; revisit when uv ships musl wheels for all our
-# Rust-extension deps (pydantic_core, cryptography, bcrypt).
+# with `ModuleNotFoundError: pydantic_core._pydantic_core`.
+# Re-checked 2026-07-08 : pydantic_core / cryptography / bcrypt now ship
+# musllinux wheels, BUT `onnxruntime` (runtime dep for churn serving,
+# shared ADR-0061 Phase C) still has none as of 1.27.0 — alpine remains
+# blocked on that single dep. See TASKS.md for the revisit options.
 FROM python:3.14-slim-bookworm AS runtime
 
 # Non-root user (Dockle CIS-DI-0001 + matches Java mirror's spring user)
