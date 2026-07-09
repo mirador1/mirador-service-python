@@ -15,10 +15,10 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from sqlalchemy import delete, or_
+from sqlalchemy import CursorResult, delete, or_
 
 from iris_service.auth.models import RefreshToken
 from iris_service.db.base import get_session_factory
@@ -50,7 +50,12 @@ async def cleanup_refresh_tokens() -> int:
             )
         )
         await session.commit()
-        count = result.rowcount or 0
+        # SQLAlchemy 2.0.51 tightened AsyncSession.execute() typing to
+        # Result[Any] (no .rowcount) ; the concrete type for a DML DELETE
+        # is CursorResult, which carries rowcount. Cast to satisfy mypy
+        # strict — the runtime object is genuinely a CursorResult. The
+        # [Any] row type is inherent to a DELETE (no columns returned).
+        count = cast("CursorResult[Any]", result).rowcount or 0
         logger.info("refresh_token_cleanup deleted=%d", count)
         return count
 

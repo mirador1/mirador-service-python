@@ -25,28 +25,28 @@ dependencies = [
     "pydantic[email]>=2.11",
     "pydantic-settings>=2.7",
     # ORM + migrations — mirror of Spring Data JPA + Flyway
-    "sqlalchemy[asyncio]==2.0.36",
+    "sqlalchemy[asyncio]==2.0.51",
     "asyncpg==0.31.0",  # 0.31.0 ships cp314 wheels ; 0.30.0 didn't (forced source build → cc missing in CI slim image)
-    "alembic==1.14.0",
+    "alembic==1.18.5",
     # Auth + JWT — mirror of Spring Security + jjwt
     # Kafka — mirror of Spring Kafka
-    "aiokafka==0.13.0",  # 0.13.0 ships cp314 wheels ; 0.12.0 didn't (forced source build → cc missing in CI slim image)
+    "aiokafka==0.14.0",  # 0.13.0 ships cp314 wheels ; 0.12.0 didn't (forced source build → cc missing in CI slim image)
     # Redis — mirror of Spring Data Redis
     "redis[hiredis]==5.2.1",
     # Observability — mirror of Micrometer + OpenTelemetry
-    "opentelemetry-api==1.29.0",
-    "opentelemetry-sdk==1.29.0",
-    "opentelemetry-exporter-otlp==1.29.0",
-    "opentelemetry-instrumentation-fastapi==0.50b0",
-    "opentelemetry-instrumentation-sqlalchemy==0.50b0",
-    "opentelemetry-instrumentation-aiokafka==0.50b0",
-    "opentelemetry-instrumentation-redis==0.50b0",
-    "prometheus-client==0.21.1",
+    "opentelemetry-api==1.43.0",
+    "opentelemetry-sdk==1.43.0",
+    "opentelemetry-exporter-otlp==1.43.0",
+    "opentelemetry-instrumentation-fastapi==0.64b0",
+    "opentelemetry-instrumentation-sqlalchemy==0.64b0",
+    "opentelemetry-instrumentation-aiokafka==0.64b0",
+    "opentelemetry-instrumentation-redis==0.64b0",
+    "prometheus-client==0.25.0",
     "starlette-prometheus==0.10.0",
     # Logging — structured JSON
     "structlog==24.4.0",
     # Rate limiting — mirror of bucket4j
-    "slowapi==0.1.9",
+    "slowapi==0.1.10",
     # Resilience patterns (retry, backoff) — mirror of resilience4j retry
     "tenacity==9.1.4",
     # HTTP client for outbound calls to JSONPlaceholder, Ollama, etc.
