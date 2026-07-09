@@ -104,6 +104,10 @@ dev = [
     # CVE scanning — mirror of OWASP Dependency-Check (Java) + npm-audit (UI).
     # Per ADR-0007 §9. Wired in CI via .gitlab-ci/quality.yml :: pip-audit.
     "pip-audit>=2.7.3",
+    # pip-audit pulls pip transitively (pip → pip-api → pip-audit) and then
+    # audits it. Constrain pip to the patched line so it doesn't flag its own
+    # dependency : PYSEC-2026-196 fixed in pip 26.1.2 (added 2026-07-09 sweep).
+    "pip>=26.1.2",
     # Microbenchmarks — mirror of JMH (Java). Per ADR-0007 §13. Hot paths :
     # JWT encode/decode, bcrypt hash/verify, repository search. JSON output
     # via --benchmark-json for CI delta tracking. Run via :
